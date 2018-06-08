@@ -1,0 +1,51 @@
+.logo{
+	font-size: 25px;
+    font-weight: bold;
+}
+
+.hero.is-info{
+	background-color:#0069ff;
+}
+
+
+
+.hero.is-info a.navbar-item:hover{
+	background:transparent;
+}
+
+
+input[type=range].slider:not([orient=vertical]).has-output+output {
+	top: .5rem;
+}
+
+.container{
+	max-width:1000px !important;
+}
+
+.label{
+	font-weight: normal;
+}
+
+.control{
+	margin-bottom:20px;
+}
+
+.no-margin{
+	margin-bottom: -20px !important;
+}
+
+.frequency-controls{
+	margin-top:20px;
+	margin-bottom:20px;
+}
+
+.hero{
+	margin-bottom:15px;
+}
+
+@media screen and (max-width:1100px){
+	.container{
+		margin-left:20px;
+		margin-right:20px;
+	}
+}

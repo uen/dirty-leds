@@ -1,0 +1,155 @@
+<div class="container" ng-init="getDevices()">
+
+	<div class="columns">
+
+		<div class="column">
+			<div class="tabs">
+				<ul>
+					<li ng-class="{'is-active':activeStatus(device)}" ng-repeat="device in devices">
+						<a ng-click="setDevice(device)">{{device.name}}</a>
+					</li>
+				</ul>
+			</div>
+		</div>
+		
+	</div>
+
+	<div class="columns">
+		<div class="column">
+			<label></label>
+			<h4 class="subtitle">Non-reactive Effects</h4>
+			<div class="columns">
+				<div class="column">
+					<div class="buttons">
+						<a ng-repeat="effect in activeDevice.effects.nreactive" ng-class="{'is-success':activeDevice.currentEffect==effect.name}" ng-click="setEffect(effect)" class="button is-link is-rounded">{{effect.name}}</a>
+					</div>
+				</div>
+			</div>
+
+			<h4 class="subtitle">Reactive Effects</h4>
+			
+			<div class="columns">
+				<div class="column">
+					<div class="buttons">
+						<a ng-repeat="effect in activeDevice.effects.reactive" ng-class="{'is-success':activeDevice.currentEffect==effect.name}" ng-click="setEffect(effect)" class="button is-link is-rounded">{{effect.name}}</a>
+
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="frequency-controls">
+		<div class="columns">
+			<div class="column">
+				<label class="label">Min Frequency</label>
+				<div class="field">
+					<div class="control no-margin">
+						<input 
+						class="slider is-fullwidth has-output" 
+						id="min-frequency-slider"
+						step="10" 
+						min="0" 
+						max="20000" 
+						ng-model="activeDevice.minFrequency" 
+						ng-change="setMinFrequency(activeDevice.minFrequency)"
+						value="{{activeDevice.minFrequency}}" 
+						type="range">
+
+
+						<output for="min-frequency-slider">{{activeDevice.minFrequency}}</output>
+					</div>
+				</div>
+			</div>
+		</div>
+
+
+		<div class="columns">
+			<div class="column">
+				<label class="label">Max Frequency</label>
+				<div class="field">
+					<div class="control">
+						<input 
+						class="slider is-fullwidth has-output" 
+						id="max-frequency-slider"
+						step="10" 
+						min="0" 
+						max="20000" 
+						ng-model="activeDevice.maxFrequency"
+						ng-change="setMaxFrequency(activeDevice.maxFrequency)"
+						value="{{activeDevice.maxFrequency}}" type="range">
+
+
+						<output for="max-frequency-slider">{{activeDevice.maxFrequency}}</output>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+	<div class="columns">
+		<div class="columns">
+			<div class="column is-12">
+				<div class="tabs">
+					<ul>
+						<li ng-class="{'is-active':optionActiveStatus(effect)}" ng-repeat="effect in activeDevice.effects.reactive.concat(activeDevice.effects.nreactive)">
+							<a ng-click="setActiveOption(effect)">{{effect.name}}</a>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="columns">
+		<div class="column is-12">
+			<div ng-repeat="option in activeEffectOption.options">
+				<div class="field">
+					<label class="label">{{option.name}}</label>
+
+					<div class="control">
+						<div class="select is-fullwidth" ng-if="option.type=='dropdown'">
+							<select 
+							ng-model="activeEffectOption.current_options[option.k]" 
+							ng-options="key as key for (key, value) in option.config" 
+							ng-change="setOption(option.k, activeEffectOption.current_options[option.k])">
+						</select>
+					</div>
+
+					<div ng-if="option.type=='float_slider' || option.type=='slider'">
+						<input 
+						ng-model="activeEffectOption.current_options[option.k]" 
+						ng-change="setOption(option.k, activeEffectOption.current_options[option.k])" 
+						class="slider has-output is-fullwidth" 
+						step="{{option.config[2]}}" 
+						min="{{option.config[0]}}" 
+						max="{{option.config[1]}}" 
+						id="option-{{option.k}}" 
+						value="{{activeEffectOption.current_options[option.k]}}" 
+						type="range">
+						<output for="option-{{option.k}}">{{activeEffectOption.current_options[option.k]}}</output>
+					</div>
+
+					<div ng-if="option.type=='checkbox'">
+						<div class="b-checkbox">
+							<input 
+							id="option-{{option.k}}" 
+							class="styled" 
+							ng-change="setOption(option.k, activeEffectOption.current_options[option.k])"
+							ng-model="activeEffectOption.current_options[option.k]" type="checkbox">
+
+							<label for="option-{{option.k}}"></label>
+						</div>
+					</div>
+				</div>
+			</div>				
+		</div>
+
+	</div>
+</div>
+
+
+</div>
+
+</div>
