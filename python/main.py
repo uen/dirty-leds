@@ -5,9 +5,9 @@ from collections import deque
 import time
 import sys
 import numpy as np
-import lib.config  as config
+import config
 import lib.microphone as microphone
-import lib.dsp as dsp
+from lib.dsp import ExpFilter
 #import lib.led as led
 import lib.devices as devices
 import lib.bottle as bottle
@@ -20,7 +20,7 @@ import random
 import socket
 import util
 from visualizer import Visualizer
-from dsp import DSP
+from lib.dsp import DSP
 
 class Board():
     def __init__(self, board):
@@ -64,6 +64,11 @@ def frames_per_second():
     return _fps.update(1000.0 / dt)
 
 
+#### HACK for laser ####
+import socket
+laserSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+
 
 def microphone_update(audio_samples):
     global y_roll, prev_rms, prev_exp, prev_fps_update
@@ -83,6 +88,13 @@ def microphone_update(audio_samples):
         # Map filterbank output onto LED strip(s)
         boards[board].esp.show(outputs[board])
 
+
+    #### HACK for laser ####
+    if(audio_input):
+        laserSocket.sendto("1".encode('utf-8'), ('192.168.1.103', 7777))
+    else:
+        laserSocket.sendto("0".encode('utf-8'), ('192.168.1.103', 7777))
+
     # FPS update
     fps = frames_per_second()
     if time.time() - 0.5 > prev_fps_update:
@@ -101,16 +113,22 @@ prev_fps_update = time.time()
 # The previous time that the frames_per_second() function was called
 _time_prev = time.time() * 1000.0
 # The low-pass filter used to estimate frames-per-second
-_fps = dsp.ExpFilter(val=config.settings["configuration"]["FPS"], alpha_decay=0.2, alpha_rise=0.2)
+_fps = ExpFilter(val=config.settings["configuration"]["FPS"], alpha_decay=0.2, alpha_rise=0.2)
+
 
 
 
 apiThread = None
 
+api.setBoards(boards)
+api.setConfig(config)
+
 if __name__ == "__main__":
     apiThread = Thread(target=bottle.run, kwargs=dict(host=socket.gethostname(), port=8082, debug=True))
     apiThread.daemon = True
     apiThread.start()
+
+
 
 
 

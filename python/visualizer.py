@@ -1,16 +1,14 @@
 from collections import deque
 import numpy as np
-import lib.config as config
+import config as config
 import time
 
 class Visualizer():
     def __init__(self, board):
-        print(type(board))
         # Name of board this for which this visualizer instance is visualising
         self.board = board
         # Dictionary linking names of effects to their respective functions
         self.effects = {}
-        print(board)
         """{"Scroll":self.visualize_scroll,
                         "Energy":self.visualize_energy,
                         "Spectrum":self.visualize_spectrum,
@@ -25,6 +23,9 @@ class Visualizer():
                         "Fade":self.visualize_fade,
                         "Gradient":self.visualize_gradient,
                         "Calibration": self.visualize_calibration}"""
+
+        from effects.off import Off
+        self.effects["Off"] = Off(self)
 
         from effects.scroll import Scroll
         self.effects["Scroll"] = Scroll(self)
@@ -69,7 +70,7 @@ class Visualizer():
         # Setup for frequency detection algorithm
         self.freq_channel_history = 40
         self.beat_count = 0
-        print(board)
+       
         self.freq_channels = [deque(maxlen=self.freq_channel_history) for i in range(config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"])]
         self.prev_output = np.array([[0 for i in range(config.settings["devices"][self.board.board]["configuration"]["N_PIXELS"])] for i in range(3)])
         self.output = np.array([[0 for i in range(config.settings["devices"][self.board.board]["configuration"]["N_PIXELS"])] for i in range(3)])
@@ -136,7 +137,10 @@ class Visualizer():
                                                  ["decay", "Flash Decay", "float_slider", (0.1,1.0,0.05)]],
                                      "Spectrum":[
                                                     ["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
-                                                    ["blur", "Blur", "float_slider", (0.1,10.0,0.1)]
+                                                    ["blur", "Blur", "float_slider", (0.1,4.0,0.1)]
+                                                ],
+                                        "Auto": [
+                                                    ["timer", "Timer", "slider", (100, 20000, 100)]
                                                 ],
                                    "Wavelength":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["roll_speed", "Roll Speed", "slider", (0,8,1)],
@@ -258,7 +262,8 @@ class Visualizer():
 
         self.update_freq_channels(y)
         self.detect_freqs()
-        if self.effects[self.board.config["current_effect"]].nonReactive:
+        currentEffect = self.board.config["current_effect"]
+        if self.effects[currentEffect].nonReactive:
             self.prev_output = self.effects[self.board.config["current_effect"]].visualize(self.board, y)
         elif audio_input:
             #self.prev_output = self.effects[config.settings["devices"][self.board.board]["configuration"]["current_effect"]](self.effects[config.settings["devices"][self.board.board]["configuration"]["current_effect"]], self.board, y)

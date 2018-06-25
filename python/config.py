@@ -16,7 +16,7 @@ settings = {                                                      # All settings
                      'displayFPS': False,                        # Whether to print the FPS when running (can reduce performance)
                      'MIC_RATE': 48000,                           # Sampling frequency of the microphone in Hz
                      'FPS': 60,                                   # Desired refresh rate of the visualization (frames per second)
-                     'maxBrightness': 30,                       # Max brightness sent to LED strip
+                     'maxBrightness': 255,                       # Max brightness sent to LED strip
                      'N_ROLLING_HISTORY': 4,                      # Number of past audio frames to include in the rolling window
                      'MIN_VOLUME_THRESHOLD': 0.001,                # No music visualization displayed if recorded audio volume below threshold
                   
@@ -29,12 +29,13 @@ settings = {                                                      # All settings
                 "Effect Options":True},
 
     # All devices and their respective settings. Indexed by name, call each one what you want.
-    "devices":{"Desk Strip":{
+    "devices":{
+        "Desk Strip":{
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
                                        "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
                                        "MAC_ADDR": "YOUR MAC ADDRESS HERE",             # MAC address of the ESP8266. Only used if AUTO_DETECT is True
-                                       "UDP_IP": "192.168.0.150",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
+                                       "UDP_IP": "192.168.1.100",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
                                        "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
                                        "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
@@ -59,16 +60,15 @@ settings = {                                                      # All settings
                                                    "color_mode": "Spectral",        # Color of gradient
                                                    "decay": 0.9,                    # How quickly the flash fades away 
                                                    "wipe_speed":1},                 # Number of pixels added to colour bit every frame
-                                     "Spectrum":  {"r_multiplier": 1.0,             # How much red
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0},            # How much blue
-                                                  "Gradient Spectrum":{"blur": 1, "color_mode":"Spectral"},
+                                    
+                                       "Spectrum":{"blur": 1.0, "color_mode":"Spectral"},
+                                       
                                      "Wavelength":{"roll_speed": 0,                 # How fast (if at all) to cycle colour overlay across strip
                                                    "color_mode": "Spectral",        # Colour gradient to display
                                                    "mirror": False,                 # Reflect output down centre of strip
                                                    "reverse_grad": False,           # Flip (LR) gradient
                                                    "reverse_roll": False,           # Reverse movement of gradient roll
-                                                   "blur": 3.0,                     # Amount of blur to apply
+                                                   "blur": 1.0,                     # Amount of blur to apply
                                                    "flip_lr":False},                # Flip output left-right
                                      "Scroll":    {"lows_color": "Red",             # Colour of low frequencies
                                                    "mids_color": "Green",           # Colour of mid frequencies
@@ -80,13 +80,13 @@ settings = {                                                      # All settings
                                                    "g_multiplier": 1.0,             # How much green
                                                    "b_multiplier": 1.0,             # How much blue
                                                    "blur": 0.2},                    # Amount of blur to apply
-
                                      "Power":     {"color_mode": "Spectral",        # Colour gradient to display
                                                    "s_count": 20,                   # Initial number of sparks
                                                    "s_color": "White",              # Color of sparks
                                                    "mirror": True,                  # Mirror output down central axis
                                                    "flip_lr":False},                # Flip output left-right
                                      "Single":    {"color": "Purple"},              # Static color to show
+                                     "Auto":      {"timer": 500},
                                      "Beat":      {"color": "Red",                  # Colour of beat flash
                                                    "decay": 0.7},                   # How quickly the flash fades away
                                      "Bars":      {"resolution":4,                  # Number of "bars"

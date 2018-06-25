@@ -1,6 +1,6 @@
 import time
 import numpy as np
-import lib.config as config
+import config as config
 
 class LEDController:
     def __init__(self):
@@ -100,7 +100,10 @@ class ESP8266(LEDController):
             g (0 to 255): Green value of LED
             b (0 to 255): Blue value of LED
         """
+   
         message = pixels.T.clip(0, config.settings["configuration"]["maxBrightness"]).astype(np.uint8).ravel().tostring()
         self._sock.sendto(message, (self._ip, self._port))
+
+
 
 

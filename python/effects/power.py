@@ -1,6 +1,6 @@
 from scipy.ndimage.filters import gaussian_filter1d
 import numpy as np
-import lib.config  as config
+import config  as config
 import random
 import util
 
@@ -29,7 +29,7 @@ class Power(Effect):
         if board.visualizer.current_freq_detects["high"]:
             self.power_brightness = 1.0
             # Generate random indexes
-            self.power_indexes = random.sample(range(board.config["N_PIXELS"]), board.effectConfig["Power"]["s_count"])
+            self.power_indexes = random.sample(range(board.config["N_PIXELS"]), board.config["N_PIXELS"]//6)
             #print("ye")
         # Assign colour to the random indexes
         for index in self.power_indexes:

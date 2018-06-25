@@ -49,3 +49,7 @@ input[type=range].slider:not([orient=vertical]).has-output+output {
 		margin-right:20px;
 	}
 }
+
+body{
+	background:#101010;
+}

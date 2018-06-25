@@ -4,7 +4,7 @@ from __future__ import division
 
 import platform
 import numpy as np
-import lib.config as config
+import config as config
 
 def detect_esp8266():
     """ Uses "arp -a" to find esp8266 on windows hotspot"""

@@ -10,17 +10,15 @@ def process():
 def process(filepath):
     return bottle.static_file(filepath, root="static")
 
-def setVis(vis):
-	global _vis
-	_vis = vis
+
+def setBoards(boards):
+	global _boards;
+	_boards = boards
 
 def setConfig(config):
 	global _config;
-	_config = config
+	_config = config;
 
-def setSP(sp):
-	global _sp
-	_sp = sp
 
 @bottle.route('/api/get/devices', method = 'GET')
 def process():
@@ -29,30 +27,37 @@ def process():
 
 		effects = {"reactive":[], "nreactive":[]}
 
-		for effect, details in _vis[device].effects.items():
-		
-			effects_config = _vis[device].dynamic_effects_config[effect]
+		for effect, details in _boards[device].visualizer.effects.items():
+			currentOptions = None
 			options = []
-			for effect_config_ in effects_config:
-				option = {
-					"k": effect_config_[0],
-					"name": effect_config_[1],
-					"type": effect_config_[2]
-				}
-				if len(effect_config_) > 3:
-					option["config"] = effect_config_[3]
-				options.append(option)
+			if effect in _boards[device].visualizer.dynamic_effects_config:
+				currentOptions = _boards[device].effectConfig[effect]
+
+				effects_config = _boards[device].visualizer.dynamic_effects_config[effect]
+				
+				for effect_config_ in effects_config:
+					option = {
+						"k": effect_config_[0],
+						"name": effect_config_[1],
+						"type": effect_config_[2]
+					}
+					if len(effect_config_) > 3:
+						option["config"] = effect_config_[3]
+					options.append(option)
+			else:
+				currentOptions = {}
+
 
 			effect_ = {
 				"name": effect, 
-				"current_options":_config.settings["devices"][device]["effect_opts"][effect],
+				"current_options":currentOptions,
 				"options": options
 			}
 
-			if(effect not in _vis[device].non_reactive_effects):
-				effects["reactive"].append(effect_)
-			else:
+			if(details.nonReactive):
 				effects["nreactive"].append(effect_)
+			else:
+				effects["reactive"].append(effect_)
 
 
 
@@ -60,9 +65,9 @@ def process():
 
 		devices.append({
 			"name":device, 
-			"minFrequency":		_config.settings["devices"][device]["configuration"]["MIN_FREQUENCY"],
-			"maxFrequency":		_config.settings["devices"][device]["configuration"]["MAX_FREQUENCY"],
-			"currentEffect":	_config.settings["devices"][device]["configuration"]["current_effect"], 
+			"minFrequency":		_boards[device].config["MIN_FREQUENCY"],
+			"maxFrequency":		_boards[device].config["MAX_FREQUENCY"],
+			"currentEffect":	_boards[device].config["current_effect"], 
 			"effects":			effects
 		})
 
@@ -88,11 +93,11 @@ def process():
 	if(foundDevice is None):
 		return json.dumps({"error" : "device not found"})
 
-	for effect, details in _vis[foundDevice].effects.items():
+	for effect, details in _boards[foundDevice].visualizer.effects.items():
 		if(effect == effect_):
 			foundEffect = effect
 
-	for effect in _vis[foundDevice].non_reactive_effects:
+	for effect in _boards[foundDevice].visualizer.non_reactive_effects:
 		if(effect==effect_):
 			foundEffect = effect
 
@@ -129,7 +134,7 @@ def process():
 
 
 	_config.settings["devices"][device]["configuration"]["MAX_FREQUENCY"] = value_
-	_sp[device].create_mel_bank()
+	_boards[device].signalProcessor.create_mel_bank()
 
 	return json.dumps({"status": "ok"})
 
@@ -155,7 +160,7 @@ def process():
 
 	value_ = int(value_)
 
-	_sp[device].create_mel_bank()
+	_boards[device].signalProcessor.create_mel_bank()
 
 	_config.settings["devices"][device]["configuration"]["MIN_FREQUENCY"] = value_
 
@@ -181,18 +186,14 @@ def process():
 	if(foundDevice is None):
 		return json.dumps({"error" : "device not found"})
 
-	for effect, details in _vis[foundDevice].effects.items():
+	for effect, details in _boards[foundDevice].visualizer.effects.items():
 		if(effect == effect_):
-			foundEffect = effect
-
-	for effect in _vis[foundDevice].non_reactive_effects:
-		if(effect==effect_):
 			foundEffect = effect
 
 	if(foundEffect is None):
 		return json.dumps({"error": "effect not found"})
 
-	for option in _config.settings["devices"][foundDevice]["effect_opts"][foundEffect]:
+	for option in _boards[foundDevice].effectConfig[foundEffect]:
 		if(option==option_):
 			foundOption = option
 
@@ -208,17 +209,16 @@ def process():
 	except Exception as e:
 		return json.dumps({"error": "invalid value"})
 
-	if isinstance(_config.settings["devices"][foundDevice]["effect_opts"][foundEffect][foundOption], int):
+	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], int):
 		value_ = int(value_)
 
-	if isinstance(_config.settings["devices"][foundDevice]["effect_opts"][foundEffect][foundOption], numpy.float64):
+	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], numpy.float64):
 		value_ = numpty.float64(value_)
 
-	if isinstance(_config.settings["devices"][foundDevice]["effect_opts"][foundEffect][foundOption], float):
+	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], float):
 		value_ = float(value_)
 
-	_config.settings["devices"][foundDevice]["effect_opts"][foundEffect][foundOption] = value_
-
+	_boards[foundDevice].effectConfig[foundEffect][foundOption] = value_
 
 	return json.dumps({"status": "ok"})
 

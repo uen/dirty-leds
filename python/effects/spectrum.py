@@ -1,6 +1,6 @@
 from scipy.ndimage.filters import gaussian_filter1d
 import numpy as np
-import lib.config  as config
+import config  as config
 import util
 
 from effects.effect import Effect
@@ -19,9 +19,7 @@ class Spectrum(Effect):
         r = board.signalProcessor.r_filt.update(y - board.signalProcessor.common_mode.value)
         g = np.abs(diff)
         b = board.signalProcessor.b_filt.update(np.copy(y))
-        r *= board.effectConfig["Spectrum"]["r_multiplier"]
-        g *= board.effectConfig["Spectrum"]["g_multiplier"]
-        b *= board.effectConfig["Spectrum"]["b_multiplier"]
+        
         # Mirror the color channels for symmetric output
         r = np.concatenate((r[::-1], r))
         g = np.concatenate((g[::-1], g))
@@ -36,12 +34,12 @@ class Spectrum(Effect):
         )
 
         r = np.multiply(r, outputGradient[0])
-        g = np.multiply(r, outputGradient[1])
-        b = np.multiply(r, outputGradient[2])
+        g = np.multiply(g, outputGradient[1])
+        b = np.multiply(b, outputGradient[2])
 
-        r = gaussian_filter1d(r, sigma=effectConfig["Spectrum"]["blur"]*2)
-        g = gaussian_filter1d(r, sigma=effectConfig["Spectrum"]["blur"]*2)
-        b = gaussian_filter1d(r, sigma=effectConfig["Spectrum"]["blur"]*2)
+        r = gaussian_filter1d(r, sigma=board.effectConfig["Spectrum"]["blur"]*2)
+        g = gaussian_filter1d(g, sigma=board.effectConfig["Spectrum"]["blur"]*2)
+        b = gaussian_filter1d(b, sigma=board.effectConfig["Spectrum"]["blur"]*2)
 
         r = np.minimum(255, np.multiply(r, 2))
         g = np.minimum(255, np.multiply(g, 2))
