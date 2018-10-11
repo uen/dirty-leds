@@ -73,27 +73,36 @@ laserSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 def microphone_update(audio_samples):
     global y_roll, prev_rms, prev_exp, prev_fps_update
 
+    b = next(iter(boards))
+        
     # Get processed audio data for each device
     audio_datas = {}
-    for board in boards:
-        audio_datas[board] = boards[board].signalProcessor.update(audio_samples)
+    if(config.settings["sync"]):
+        audio_datas[b] = boards[b].signalProcessor.update(audio_samples)
+    else:
+        for board in boards:
+            audio_datas[board] = boards[board].signalProcessor.update(audio_samples)
         
     outputs = {}
-    
-    # Visualization for each board
-    for board in boards:
-        # Get visualization output for each board
-        audio_input = audio_datas[board]["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
-        outputs[board] = boards[board].visualizer.get_vis(audio_datas[board]["mel"], audio_input)
-        # Map filterbank output onto LED strip(s)
-        boards[board].esp.show(outputs[board])
 
+    if(config.settings["sync"]):
+        audio_input = audio_datas[b]["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
+        outputs[b] = boards[b].visualizer.get_vis(audio_datas[b]["mel"], audio_input)
 
-    #### HACK for laser ####
-    if(audio_input):
-        laserSocket.sendto("1".encode('utf-8'), ('192.168.1.103', 7777))
+        for board in boards:
+            boards[board].esp.show(outputs[b])
     else:
-        laserSocket.sendto("0".encode('utf-8'), ('192.168.1.103', 7777))
+        
+        # Visualization for each board
+        for board in boards:
+            # Get visualization output for each board
+            audio_input = audio_datas[board]["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
+            outputs[board] = boards[board].visualizer.get_vis(audio_datas[board]["mel"], audio_input)
+
+            
+            # Map filterbank output onto LED strip(s)
+            boards[board].esp.show(outputs[board])
+
 
     # FPS update
     fps = frames_per_second()
@@ -124,7 +133,7 @@ api.setBoards(boards)
 api.setConfig(config)
 
 if __name__ == "__main__":
-    apiThread = Thread(target=bottle.run, kwargs=dict(host=socket.gethostname(), port=8082, debug=True))
+    apiThread = Thread(target=bottle.run, kwargs=dict(host="localhost", port=8082, debug=True))
     apiThread.daemon = True
     apiThread.start()
 

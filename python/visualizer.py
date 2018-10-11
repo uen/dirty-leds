@@ -20,6 +20,7 @@ class Visualizer():
                         #"Pulse":self.visualize_pulse,
                         #"Auto":self.visualize_auto,
                         "Single":self.visualize_single,
+                        "Fire":self.visualize_fire,
                         "Fade":self.visualize_fade,
                         "Gradient":self.visualize_gradient,
                         "Calibration": self.visualize_calibration}"""
@@ -57,16 +58,22 @@ class Visualizer():
         from effects.single import Single
         self.effects["Single"] = Single(self)
 
+        from effects.fire import Fire
+        self.effects["Fire"] = Fire(self)
+
         from effects.power import Power
         self.effects["Power"] = Power(self)
 
         from effects.bars import Bars
         self.effects["Bars"] = Bars(self)
 
+        from effects.sleep import Sleep
+        self.effects["Sleep"] = Sleep(self)
+
 
         # List of all the visualisation effects that aren't audio reactive.
         # These will still display when no music is playing.
-        self.non_reactive_effects = ["Single", "Gradient", "Fade", "Calibration"]
+        self.non_reactive_effects = ["Single", "Fire", "Gradient", "Fade", "Sleep" "Calibration"]
         # Setup for frequency detection algorithm
         self.freq_channel_history = 40
         self.beat_count = 0
@@ -180,7 +187,9 @@ class Visualizer():
                                   "Calibration":[["r", "Red value", "slider", (0,255,1)],
                                                  ["g", "Green value", "slider", (0,255,1)],
                                                  ["b", "Blue value", "slider", (0,255,1)]],
-                                        "Sleep":[["hour", "Hour to wakeup", "slider", (0,24,1)]]
+                                        "Sleep":[["hour", "Hour to start fade", "slider", (0,24,1)],
+                                                 ["minute", "Minute to start fade", "slider", (0,60,0)],
+                                                 ["minutes_fade", "How long to fade for", "slider", (0,60,30)]]
                                        }
         # Setup for fps counter
         self.frame_counter = 0

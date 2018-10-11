@@ -53,3 +53,15 @@ input[type=range].slider:not([orient=vertical]).has-output+output {
 body{
 	background:#101010;
 }
+
+label{
+	color:#fff;
+}
+
+.tabs a{
+	color:#fff;
+}
+
+.label{
+	color:#fff;
+}

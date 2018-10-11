@@ -32,7 +32,7 @@
 				<div class="column">
 					<div class="buttons">
 						<a ng-repeat="effect in activeDevice.effects.reactive" ng-class="{'is-success':activeDevice.currentEffect==effect.name}" ng-click="setEffect(effect)" class="button is-link is-rounded">{{effect.name}}</a>
-
+						<a ng-click="toggleSync()" ng-class="{'is-success':synced}" class="button is-link is-rounded">Sync</a>
 					</div>
 				</div>
 			</div>
@@ -89,15 +89,13 @@
 
 
 	<div class="columns">
-		<div class="columns">
-			<div class="column is-12">
-				<div class="tabs">
-					<ul>
-						<li ng-class="{'is-active':optionActiveStatus(effect)}" ng-repeat="effect in activeDevice.effects.reactive.concat(activeDevice.effects.nreactive)">
-							<a ng-click="setActiveOption(effect)">{{effect.name}}</a>
-						</li>
-					</ul>
-				</div>
+		<div class="column is-12">
+			<div class="tabs">
+				<ul>
+					<li ng-class="{'is-active':optionActiveStatus(effect)}" ng-repeat="effect in activeDevice.effects.reactive.concat(activeDevice.effects.nreactive)">
+						<a ng-click="setActiveOption(effect)">{{effect.name}}</a>
+					</li>
+				</ul>
 			</div>
 		</div>
 	</div>

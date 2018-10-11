@@ -6,6 +6,11 @@ App.controller('mainController', function($scope,$rootScope,$location, $api, $ti
 			if(data.devices){
 				$scope.devices = data.devices
 
+				$scope.devices.push(
+					Object.assign({...data.devices[0]}, {
+						name: "All"
+					})
+				)
 			}
 
 			$scope.activeDevice = $scope.devices[0]
@@ -13,6 +18,14 @@ App.controller('mainController', function($scope,$rootScope,$location, $api, $ti
 		})
 	}
 
+	$scope.synced = false;
+	$scope.toggleSync = () => {
+		$scope.synced = !$scope.synced
+		$api.fetch('api/sync', {sync:$scope.synced}, (data) => {
+
+		})
+
+	}
 	$scope.setEffect = (effect) => {
 		console.log(effect)
 		$api.fetch('set/effect', {device:$scope.activeDevice.name, effect:effect.name}, (data) => {
@@ -20,8 +33,6 @@ App.controller('mainController', function($scope,$rootScope,$location, $api, $ti
 				$scope.activeDevice.currentEffect = effect.name
 			}
 		})
-
-
 	}
 
 	$scope.setDevice = (device) => {

@@ -10,7 +10,7 @@ use_defaults = {"configuration": True,                           # See notes bel
                 "gradients": True}
 
 settings = {                                                      # All settings are stored in this dict
-
+    "sync" : False,
     "configuration":{  # Program configuration
                      'USE_GUI': False,                             # Whether to display the GUI
                      'displayFPS': False,                        # Whether to print the FPS when running (can reduce performance)
@@ -35,11 +35,11 @@ settings = {                                                      # All settings
                                         # Required configuration for device. See below for all required keys per device
                                        "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
                                        "MAC_ADDR": "YOUR MAC ADDRESS HERE",             # MAC address of the ESP8266. Only used if AUTO_DETECT is True
-                                       "UDP_IP": "192.168.1.100",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
+                                       "UDP_IP": "192.168.1.108",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
                                        "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
-                                       "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
+                                       "maxBrightness": 255,                    # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
-                                       "N_PIXELS": 256,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
+                                       "N_PIXELS": 300,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
@@ -86,6 +86,9 @@ settings = {                                                      # All settings
                                                    "mirror": True,                  # Mirror output down central axis
                                                    "flip_lr":False},                # Flip output left-right
                                      "Single":    {"color": "Purple"},              # Static color to show
+                                     "Sleep":     {"hour": 7,
+                                                   "minute": 0,
+                                                   "minutes_fade": 30},
                                      "Auto":      {"timer": 500},
                                      "Beat":      {"color": "Red",                  # Colour of beat flash
                                                    "decay": 0.7},                   # How quickly the flash fades away
@@ -105,8 +108,7 @@ settings = {                                                      # All settings
                                      "Calibration":{"r": 100,
                                                     "g": 100,
                                                     "b": 100},
-                                     
-                                     "Sleep": {"hour":8}
+                            
                                      }
                                   },
                                   
