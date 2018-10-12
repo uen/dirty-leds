@@ -74,7 +74,7 @@ def process():
 
 @bottle.route('/api/sync', method = 'GET')
 def process():
-	_config.settings["sync"] = bottle.request.params.sync
+	_config.settings["sync"] = bottle.request.params.sync != "false"
 
 @bottle.route('/api/set/effect', method = 'GET')
 def process():
@@ -89,9 +89,12 @@ def process():
 		if(device==device_):
 			foundDevice = device
 
+	if(useAll_):
+		foundDevice = next(iter(_config.settings["devices"]))
 	if(foundDevice is None):
-
 		return json.dumps({"error" : "device not found"})
+
+
 
 	for effect, details in _boards[foundDevice].visualizer.effects.items():
 		if(effect == effect_):
@@ -110,7 +113,7 @@ def process():
 			print(device)
 			_config.settings["devices"][device]["configuration"]["current_effect"] = foundEffect
 	else:		
-		_config.settings["devices"][device]["configuration"]["current_effect"] = foundEffect
+		_config.settings["devices"][foundDevice]["configuration"]["current_effect"] = foundEffect
 
 	return json.dumps({"status": "ok"})
 
@@ -189,6 +192,10 @@ def process():
 		if(device==device_):
 			foundDevice = device
 
+
+	if(useAll_):
+		foundDevice = next(iter(_config.settings["devices"]))
+
 	if(foundDevice is None):
 		return json.dumps({"error" : "device not found"})
 
@@ -215,6 +222,7 @@ def process():
 	except Exception as e:
 		return json.dumps({"error": "invalid value"})
 
+
 	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], int):
 		value_ = int(value_)
 
@@ -225,9 +233,8 @@ def process():
 		value_ = float(value_)
 
 	if useAll_:
-		for device in _config.settings["devices"]:
-			_boards[device].effectConfg[foundEffect][foundOption] = value_
+		for device, details in _config.settings["devices"].items():
+			_boards[device].effectConfig[foundEffect][foundOption] = value_
 	else:
 		_boards[foundDevice].effectConfig[foundEffect][foundOption] = value_
-
 	return json.dumps({"status": "ok"})

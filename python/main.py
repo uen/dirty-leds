@@ -74,33 +74,22 @@ def microphone_update(audio_samples):
     global y_roll, prev_rms, prev_exp, prev_fps_update
 
     b = next(iter(boards))
-        
+    
     # Get processed audio data for each device
     audio_datas = {}
-    if(config.settings["sync"]):
-        audio_datas[b] = boards[b].signalProcessor.update(audio_samples)
-    else:
-        for board in boards:
-            audio_datas[board] = boards[board].signalProcessor.update(audio_samples)
+    for board in boards:
+        audio_datas[board] = boards[board].signalProcessor.update(audio_samples)
         
     outputs = {}
 
-    if(config.settings["sync"]):
-        audio_input = audio_datas[b]["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
-        outputs[b] = boards[b].visualizer.get_vis(audio_datas[b]["mel"], audio_input)
-
-        for board in boards:
-            boards[board].esp.show(outputs[b])
-    else:
-        
-        # Visualization for each board
-        for board in boards:
+    for board in boards:
             # Get visualization output for each board
-            audio_input = audio_datas[board]["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
-            outputs[board] = boards[board].visualizer.get_vis(audio_datas[board]["mel"], audio_input)
+        audio_input = audio_datas[board]["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
+        outputs[board] = boards[board].visualizer.get_vis(audio_datas[board]["mel"], audio_input)
 
-            
-            # Map filterbank output onto LED strip(s)
+        if(config.settings["sync"]):
+            boards[board].esp.show(outputs[b])
+        else:
             boards[board].esp.show(outputs[board])
 
 
@@ -133,7 +122,7 @@ api.setBoards(boards)
 api.setConfig(config)
 
 if __name__ == "__main__":
-    apiThread = Thread(target=bottle.run, kwargs=dict(host="localhost", port=8082, debug=True))
+    apiThread = Thread(target=bottle.run, kwargs=dict(host=socket.gethostname(), port=8082, debug=True))
     apiThread.daemon = True
     apiThread.start()
 

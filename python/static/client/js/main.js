@@ -21,7 +21,7 @@ App.controller('mainController', function($scope,$rootScope,$location, $api, $ti
 	$scope.synced = false;
 	$scope.toggleSync = () => {
 		$scope.synced = !$scope.synced
-		$api.fetch('api/sync', {sync:$scope.synced}, (data) => {
+		$api.fetch('sync', {sync:$scope.synced}, (data) => {
 
 		})
 

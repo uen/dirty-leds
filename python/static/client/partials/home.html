@@ -32,7 +32,7 @@
 				<div class="column">
 					<div class="buttons">
 						<a ng-repeat="effect in activeDevice.effects.reactive" ng-class="{'is-success':activeDevice.currentEffect==effect.name}" ng-click="setEffect(effect)" class="button is-link is-rounded">{{effect.name}}</a>
-						<a ng-click="toggleSync()" ng-class="{'is-success':synced}" class="button is-link is-rounded">Sync</a>
+						<a ng-click="toggleSync()" ng-class="{'is-danger':synced}" class="button is-link is-rounded">Sync</a>
 					</div>
 				</div>
 			</div>
