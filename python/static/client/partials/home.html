@@ -32,7 +32,7 @@
 				<div class="column">
 					<div class="buttons">
 						<a ng-repeat="effect in activeDevice.effects.reactive" ng-class="{'is-success':activeDevice.currentEffect==effect.name}" ng-click="setEffect(effect)" class="button is-link is-rounded">{{effect.name}}</a>
-						<a ng-click="toggleSync()" ng-class="{'is-danger':synced}" class="button is-link is-rounded">Sync</a>
+						<a ng-click="toggleSync()" ng-init="getSync()" ng-class="{'is-danger':synced}" class="button is-link is-rounded">Sync</a>
 					</div>
 				</div>
 			</div>
@@ -40,6 +40,29 @@
 	</div>
 
 	<div class="frequency-controls">
+		<div class="columns" ng-init="getBrightness()">
+			<div class="column">
+				<label class="label">Brightness</label>
+				<div class="field">
+					<div class="control no-margin">
+						<input 
+						class="slider is-fullwidth has-output" 
+						id="brightness"
+						step="0.001" 
+						min="0" 
+						max="1" 
+						ng-model="brightness" 
+						ng-change="setBrightness(brightness)"
+						value="{{brightness}}" 
+						type="range">
+
+
+						<output for="brightness">{{brightness}}</output>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<div class="columns">
 			<div class="column">
 				<label class="label">Min Frequency</label>

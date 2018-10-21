@@ -43,8 +43,14 @@ class Visualizer():
         from effects.wave import Wave
         self.effects["Wave"] = Wave(self)
 
+        from effects.runner import RunnerReactive
+        self.effects["RunnerReactive"] = RunnerReactive(self)
+
         from effects.auto import Auto
         self.effects["Auto"] = Auto(self)
+
+        from effects.multiple import Multiple
+        self.effects["Multiple"] = Multiple(self)
 
         from effects.calibration import Calibration
         self.effects["Calibration"] = Calibration(self)
@@ -61,6 +67,9 @@ class Visualizer():
         from effects.fire import Fire
         self.effects["Fire"] = Fire(self)
 
+        from effects.gradientrunner import Runner
+        self.effects["Runner"] = Runner(self)
+
         from effects.power import Power
         self.effects["Power"] = Power(self)
 
@@ -73,7 +82,7 @@ class Visualizer():
 
         # List of all the visualisation effects that aren't audio reactive.
         # These will still display when no music is playing.
-        self.non_reactive_effects = ["Single", "Fire", "Gradient", "Fade", "Sleep" "Calibration"]
+        self.non_reactive_effects = ["Single", "Fire", "Gradient", "Fade", "Runner", "Sleep" "Calibration"]
         # Setup for frequency detection algorithm
         self.freq_channel_history = 40
         self.beat_count = 0
@@ -132,6 +141,12 @@ class Visualizer():
         # Hope this clears things up a bit for you! GUI has never been easier..? The reason for doing this is
         # 1 - To make it easy to add options to your effects for the user
         # 2 - To give a consistent GUI for the user. If every options page was set out differently it would all be a mess
+        allEffects = {}
+        for key in self.effects.keys():
+            allEffects[key] = key
+
+        print(allEffects)
+
         self.dynamic_effects_config = {"Energy":[["blur", "Blur", "float_slider", (0.1,4.0,0.1)],
                                                  ["scale", "Scale", "float_slider", (0.4,1.0,0.05)],
                                                  ["r_multiplier", "Red", "float_slider", (0.05,1.0,0.05)],
@@ -145,6 +160,11 @@ class Visualizer():
                                      "Spectrum":[
                                                     ["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                     ["blur", "Blur", "float_slider", (0.1,4.0,0.1)]
+                                                ],
+                                    "Multiple": [
+                                                    ["a", "Effect A", "dropdown", allEffects],
+                                                    ["b", "Effect B", "dropdown", allEffects],
+                                                    ["c", "Effect C", "dropdown", allEffects]
                                                 ],
                                         "Auto": [
                                                     ["timer", "Timer", "slider", (100, 20000, 100)]
@@ -181,6 +201,18 @@ class Visualizer():
                                                  ["roll_speed", "Roll Speed", "slider", (0,8,1)],
                                                  ["mirror", "Mirror", "checkbox"],
                                                  ["reverse", "Reverse", "checkbox"]],
+                                         "Runner":[["times", "times", "slider", (0.05,1,0.05)],
+                                                 ["divide", "divide", "slider", (1,15,1)],
+                                                 ["add", "add", "slider", (0,2, 0.1)],
+                                                 ["blur", "blur", "slider", (0,5,1)],
+                                                 ["color_mode", "Color Mode", "dropdown", config.settings["gradients"]]],
+
+                               "RunnerReactive":[["times", "Trail Size", "slider", (0.0,1,0.005)],
+                                                 ["divide", "Speed", "slider", (5,50,1)],
+                                                 ["add", "add", "slider", (0,1, 0.001)],
+                                                 ["blur", "blur", "slider", (0,5,1)],
+                                                 ["color_mode", "Color Mode", "dropdown", config.settings["gradients"]]],
+
                                          "Fade":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["roll_speed", "Fade Speed", "slider", (0,8,1)],
                                                  ["reverse", "Reverse", "checkbox"]],
@@ -292,6 +324,7 @@ class Visualizer():
             #if config.settings["configuration"]["USE_GUI"]:
             #    gui.label_latency.setText("{:0.3f} ms Processing Latency   ".format(latency))
             #    gui.label_fps.setText('{:.0f} / {:.0f} FPS   '.format(fps, config.settings["configuration"]["FPS"]))
+
         return self.prev_output
 
     def _split_equal(self, value, parts):

@@ -2,11 +2,11 @@ import lib.bottle as bottle
 import json
 import numpy
 
-@bottle.route("/", method='GET')
+@bottle.get("/", method='GET')
 def process():
 	return bottle.static_file('index.html', root="static")
 
-@bottle.route("/static/<filepath:path>", method='GET')
+@bottle.get("/static/<filepath:path>", method='GET')
 def process(filepath):
     return bottle.static_file(filepath, root="static")
 
@@ -20,7 +20,7 @@ def setConfig(config):
 	_config = config;
 
 
-@bottle.route('/api/get/devices', method = 'GET')
+@bottle.get('/api/get/devices', method = 'GET')
 def process():
 	devices = []
 	for device, details in _config.settings["devices"].items():
@@ -72,24 +72,42 @@ def process():
 	})
 
 
-@bottle.route('/api/sync', method = 'GET')
+
+@bottle.get('/api/get/brightness', method = 'GET')
+def process():
+	return json.dumps({"brightness": _config.settings["brightness"]})
+
+
+@bottle.get('/api/set/brightness', method = 'GET')
+def process():
+	_config.settings["brightness"] = numpy.float64(bottle.request.params.brightness)
+	return json.dumps({"status": "ok"})
+
+	
+@bottle.get('/api/set/sync', method = 'GET')
 def process():
 	_config.settings["sync"] = bottle.request.params.sync != "false"
+	return json.dumps({"status": "ok"})
 
-@bottle.route('/api/set/effect', method = 'GET')
+
+
+@bottle.get('/api/get/sync', method = 'GET')
+def process():
+	return json.dumps({"sync": _config.settings["sync"]})
+
+@bottle.get('/api/set/effect', method = 'GET')
 def process():
 	foundDevice = None
 	foundEffect = None
 
 	device_ = bottle.request.params.device
 	effect_ = bottle.request.params.effect
-	useAll_ = bottle.request.params.device == "All"
 	
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
 
-	if(useAll_):
+	if(_config.settings["sync"]):
 		foundDevice = next(iter(_config.settings["devices"]))
 	if(foundDevice is None):
 		return json.dumps({"error" : "device not found"})
@@ -108,7 +126,7 @@ def process():
 	if(foundEffect is None):
 		return json.dumps({"error": "effect not found"})
 
-	if useAll_:
+	if _config.settings["sync"]:
 		for device in _config.settings["devices"]:
 			print(device)
 			_config.settings["devices"][device]["configuration"]["current_effect"] = foundEffect
@@ -121,7 +139,7 @@ def process():
 
 
 
-@bottle.route('/api/set/frequency/max', method = 'GET')
+@bottle.get('/api/set/frequency/max', method = 'GET')
 def process():
 	foundDevice = None
  	
@@ -149,7 +167,7 @@ def process():
 
 
 
-@bottle.route('/api/set/frequency/min', method = 'GET')
+@bottle.get('/api/set/frequency/min', method = 'GET')
 def process():
 	foundDevice = None
  	
@@ -175,7 +193,7 @@ def process():
 	return json.dumps({"status": "ok"})
 
 
-@bottle.route('/api/set/option', method = 'GET')
+@bottle.get('/api/set/option', method = 'GET')
 def process():
 	foundDevice = None
 	foundEffect = None
@@ -186,7 +204,7 @@ def process():
 	effect_ = bottle.request.params.effect
 	option_ = bottle.request.params.option
 	value_ = bottle.request.params.value
-	useAll_ = device_ == "All"
+	useAll_ = _config.settings["sync"]
 
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
@@ -227,14 +245,38 @@ def process():
 		value_ = int(value_)
 
 	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], numpy.float64):
-		value_ = numpty.float64(value_)
+		value_ = numpy.float64(value_)
 
 	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], float):
 		value_ = float(value_)
 
-	if useAll_:
+	if _config.settings["sync"]:
 		for device, details in _config.settings["devices"].items():
 			_boards[device].effectConfig[foundEffect][foundOption] = value_
 	else:
 		_boards[foundDevice].effectConfig[foundEffect][foundOption] = value_
 	return json.dumps({"status": "ok"})
+
+
+#@bottle.get('/socket', apply=[websocket])
+#def socket():
+#	while True:
+#		msg = ws.receive()
+#		if msg is not None:
+#			ws.send(msg)
+#		else: break
+
+users = set()
+
+from bottle.ext.websocket import websocket
+@bottle.get('/websocket', apply=[websocket])
+def chat(ws):
+    users.add(ws)
+    while True:
+        msg = ws.receive()
+        if msg is not None:
+            for u in users:
+                u.send(msg)
+        else:
+            break
+    users.remove(ws)

@@ -19,7 +19,7 @@ class Spectrum(Effect):
         r = board.signalProcessor.r_filt.update(y - board.signalProcessor.common_mode.value)
         g = np.abs(diff)
         b = board.signalProcessor.b_filt.update(np.copy(y))
-        
+            
         # Mirror the color channels for symmetric output
         r = np.concatenate((r[::-1], r))
         g = np.concatenate((g[::-1], g))

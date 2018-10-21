@@ -1,6 +1,7 @@
 var App = angular.module("manolisApp", ['manolisApi'])
 
 App.controller('mainController', function($scope,$rootScope,$location, $api, $timeout, $window){
+	$scope.brightness = 1
 	$scope.getDevices = () => {
 		$api.fetch('get/devices', {}, (data) => {
 			if(data.devices){
@@ -18,14 +19,21 @@ App.controller('mainController', function($scope,$rootScope,$location, $api, $ti
 		})
 	}
 
-	$scope.synced = false;
 	$scope.toggleSync = () => {
 		$scope.synced = !$scope.synced
-		$api.fetch('sync', {sync:$scope.synced}, (data) => {
+		$api.fetch('set/sync', {sync:$scope.synced}, (data) => {
 
 		})
 
 	}
+
+	$scope.getSync = () => {
+		$api.fetch('get/sync', {}, (data) => {
+			console.log(data.sync)
+			$scope.synced = data.sync
+		})
+	}
+
 	$scope.setEffect = (effect) => {
 		console.log(effect)
 		$api.fetch('set/effect', {device:$scope.activeDevice.name, effect:effect.name}, (data) => {
@@ -38,6 +46,20 @@ App.controller('mainController', function($scope,$rootScope,$location, $api, $ti
 	$scope.setDevice = (device) => {
 		$scope.activeDevice = device
 	}
+
+	$scope.setBrightness = (brightness) => {
+		$api.fetch('set/brightness', {brightness}, (data) => {
+
+		})
+	}
+
+
+	$scope.getBrightness = () => {
+		$api.fetch('get/brightness', {}, (data) => {
+			$scope.brightness = data.brightness
+		})
+	}
+
 
 	$scope.setMaxFrequency = (freq) => {
 		freq = parseInt(freq)

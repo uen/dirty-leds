@@ -87,6 +87,15 @@ def microphone_update(audio_samples):
         audio_input = audio_datas[board]["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
         outputs[board] = boards[board].visualizer.get_vis(audio_datas[board]["mel"], audio_input)
 
+
+        if(boards[board].config["current_effect"] in boards[board].effectConfig and "delay" in boards[board].effectConfig[boards[board].config["current_effect"]]):
+            time.sleep(boards[board].effectConfig[boards[board].config["current_effect"]]["delay"])
+
+        outputs[board][0] = outputs[board][0] * config.settings["brightness"]
+        outputs[board][1] = outputs[board][1] * config.settings["brightness"]
+        outputs[board][2] = outputs[board][2] * config.settings["brightness"]
+
+
         if(config.settings["sync"]):
             boards[board].esp.show(outputs[b])
         else:
@@ -121,13 +130,16 @@ apiThread = None
 api.setBoards(boards)
 api.setConfig(config)
 
+def doStream():
+    microphone.start_stream(microphone_update)
+
+def doApi():
+    bottle.run(host=socket.gethostname(), port=8082)
+
 if __name__ == "__main__":
-    apiThread = Thread(target=bottle.run, kwargs=dict(host=socket.gethostname(), port=8082, debug=True))
+    apiThread = Thread(target=doApi)
     apiThread.daemon = True
     apiThread.start()
 
-
-
-
-
-microphone.start_stream(microphone_update)
+    streamThread = Thread(target=doStream)
+    streamThread.start()

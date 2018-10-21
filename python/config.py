@@ -10,7 +10,9 @@ use_defaults = {"configuration": True,                           # See notes bel
                 "gradients": True}
 
 settings = {                                                      # All settings are stored in this dict
-    "sync" : False,
+    "sync" : True,
+    "brightness" : 0.3,
+
     "configuration":{  # Program configuration
                      'USE_GUI': False,                             # Whether to display the GUI
                      'displayFPS': False,                        # Whether to print the FPS when running (can reduce performance)
@@ -43,7 +45,7 @@ settings = {                                                      # All settings
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Auto"                   # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Multiple"             # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
@@ -62,6 +64,7 @@ settings = {                                                      # All settings
                                                    "wipe_speed":1},                 # Number of pixels added to colour bit every frame
                                     
                                        "Spectrum":{"blur": 1.0, "color_mode":"Spectral"},
+                                       "Multiple":{"a": "Fade", "b":"Scroll", "c":""},
                                        
                                      "Wavelength":{"roll_speed": 0,                 # How fast (if at all) to cycle colour overlay across strip
                                                    "color_mode": "Spectral",        # Colour gradient to display
@@ -106,7 +109,10 @@ settings = {                                                      # All settings
                                                     "g": 100,
                                                     "b": 100},
                                      
-                                      "Sleep": {"hour":7, "minute":0, "minutes_fade": 30}
+                                      "Sleep": {"hour":7, "minute":0, "minutes_fade": 30},
+                                      "Fire": {"delay":0.04},
+                                      "Runner": {"color_mode":"Spectral", "times":0.15, "add":0.1, "divide":4.7,"blur":0},
+                                      "RunnerReactive": {"color_mode":"Fruity", "times":0.90, "add":0.8, "divide":18,"blur":1}
                                      }
                                   },
                               
@@ -123,7 +129,7 @@ settings = {                                                      # All settings
                                        "N_FFT_BINS": 24,                                # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Gradient"                   # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Runner"                   # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
@@ -186,7 +192,12 @@ settings = {                                                      # All settings
                                                     "g": 100,
                                                     "b": 100},
                                      
-                                     "Sleep": {"hour":7, "minute":0, "minutes_fade": 30}
+                                     "Multiple":{"a": "Scroll", "b":"", "c":""},
+
+                                     "Sleep": {"hour":7, "minute":0, "minutes_fade": 30},
+                                     "Fire": {"delay":0.04},
+                                     "Runner": {"color_mode":"Spectral", "times":0.6, "add":0.1, "divide":4.7,"blur":0},
+                                     "RunnerReactive": {"color_mode":"Fruity", "times":0.90, "add":0.8, "divide":18,"blur":1}
                                      }
                                   },
         "Shelf":{
@@ -202,7 +213,7 @@ settings = {                                                      # All settings
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Auto"                   # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Fire"                   # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
@@ -264,8 +275,12 @@ settings = {                                                      # All settings
                                      "Calibration":{"r": 100,
                                                     "g": 100,
                                                     "b": 100},
+                                      "Multiple":{"a": "Scroll", "b":"", "c":""},
                                      
-                                      "Sleep": {"hour":7, "minute":0, "minutes_fade": 30}
+                                      "Sleep": {"hour":7, "minute":0, "minutes_fade": 30},
+                                      "Fire": {"delay":0.04},
+                                      "Runner": {"color_mode":"Spectral", "times":0.6, "add":0.1, "divide":4.7,"blur":0},
+                                      "RunnerReactive": {"color_mode":"Fruity", "times":0.90, "add":0.8, "divide":18,"blur":1}
                                      }
                                   },
                                   
