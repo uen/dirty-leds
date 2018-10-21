@@ -219,7 +219,7 @@ class Visualizer():
                                   "Calibration":[["r", "Red value", "slider", (0,255,1)],
                                                  ["g", "Green value", "slider", (0,255,1)],
                                                  ["b", "Blue value", "slider", (0,255,1)]],
-                                        "Sleep":[["hour", "Hour to start fade", "slider", (0,24,1)],
+                                        "Sleep":[["hour", "Hour to start fade", "slider", (0,23,1)],
                                                  ["minute", "Minute to start fade", "slider", (0,60,0)],
                                                  ["minutes_fade", "How long to fade for", "slider", (0,60,30)]]
                                        }
