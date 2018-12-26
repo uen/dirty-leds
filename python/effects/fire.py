@@ -24,7 +24,7 @@ class Fire(Effect):
         ])
 
 #        flicker = [random.randomint(0, 70) for i in range(board.config("N_PIXELS"))]
-        flicker = np.random.randint(120, size=board.config["N_PIXELS"])
+        flicker = np.random.randint(60, size=board.config["N_PIXELS"])
 
         flicker = np.array([
             [flicker[i] for i in range(board.config["N_PIXELS"])],

@@ -8,7 +8,6 @@ from effects.wavelength import Wavelength
 
 import math
 class RunnerReactive(Effect):
-    wave_wipe_count = 0
     def __init__(self, board):
         self.effectName = "Wave"
         self.position = 0

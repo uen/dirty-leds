@@ -2,14 +2,6 @@ import lib.bottle as bottle
 import json
 import numpy
 
-@bottle.get("/", method='GET')
-def process():
-	return bottle.static_file('index.html', root="static")
-
-@bottle.get("/static/<filepath:path>", method='GET')
-def process(filepath):
-    return bottle.static_file(filepath, root="static")
-
 
 def setBoards(boards):
 	global _boards;
@@ -192,7 +184,6 @@ def process():
 
 	return json.dumps({"status": "ok"})
 
-
 @bottle.get('/api/set/option', method = 'GET')
 def process():
 	foundDevice = None
@@ -280,3 +271,19 @@ def chat(ws):
         else:
             break
     users.remove(ws)
+
+
+# viot
+@bottle.hook('after_request')
+def cors():
+    """
+    You need to add some headers to each request.
+    Don't use the wildcard '*' for Access-Control-Allow-Origin in production.
+    """
+    bottle.response.headers['Access-Control-Allow-Origin'] = '*'
+    bottle.response.headers['Access-Control-Allow-Methods'] = 'PUT, GET, POST, DELETE, OPTIONS'
+    bottle.response.headers['Access-Control-Allow-Headers'] = 'Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token'
+
+@bottle.get('/api/health', method = 'GET')
+def process():
+	return json.dumps({"status" : "ok"})
