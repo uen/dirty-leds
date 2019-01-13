@@ -19,7 +19,8 @@ class viot:
         print("auth key is ", authKey)
         uniq = quote(self.uniq, safe='')
         authKey = quote(authKey, safe='')
-        r = requests.get('http://maninet/api/module/verify?uniq='+uniq+"")
+        r = requests.get('http://maninet:8888/api/module/verify?uniq='+uniq+"&space="+self.uniq)
+        print(r)
         if(not r):
             print('viot: HTTP authentication failure')
             return False
@@ -29,9 +30,10 @@ class viot:
             print('viot: HTTP authentication response failure')
             return False
 
-        if(data.status=='ok'):
-            return data.data
+        if (resp['status']=='ok'):
+            return resp['data']
         else:
             print("viot: Authentication failure")
+            print(resp)
             return False
       

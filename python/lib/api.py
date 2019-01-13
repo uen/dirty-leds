@@ -3,7 +3,7 @@ import json
 import numpy
 from .viot import viot
 
-viotApi = viot("aodaodoada")
+viotApi = viot("jfkdfg")
 
 def setBoards(boards):
 	global _boards;
