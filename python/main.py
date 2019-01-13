@@ -21,6 +21,7 @@ import socket
 import util
 from visualizer import Visualizer
 from lib.dsp import DSP
+from lib.viot import viot
 
 class Board():
     def __init__(self, board):

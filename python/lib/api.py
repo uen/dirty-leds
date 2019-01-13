@@ -1,7 +1,9 @@
 import lib.bottle as bottle
 import json
 import numpy
+from .viot import viot
 
+viotApi = viot("aodaodoada")
 
 def setBoards(boards):
 	global _boards;
@@ -14,6 +16,15 @@ def setConfig(config):
 
 @bottle.get('/api/get/devices', method = 'GET')
 def process():
+	print(bottle.request.params.authkey)
+	if(not hasattr(bottle.request.query, 'authkey')):
+		return json.dumps({"status": "failure", "message": "authentication.unauthorized"})
+	print("okay we got it it is not none")
+	print(bottle.request.params)
+	auth = viotApi.auth(bottle.request.params.authkey)
+	if(not auth):
+		return json.dumps("")
+
 	devices = []
 	for device, details in _config.settings["devices"].items():
 
@@ -72,6 +83,8 @@ def process():
 
 @bottle.get('/api/set/brightness', method = 'GET')
 def process():
+	if (not hasattr(bottle.request.params, 'brightness')):
+		return json.dumps({"status": "failure", "message": "brightness error"})
 	_config.settings["brightness"] = numpy.float64(bottle.request.params.brightness)
 	return json.dumps({"status": "ok"})
 
@@ -258,20 +271,6 @@ def process():
 #		else: break
 
 users = set()
-
-from bottle.ext.websocket import websocket
-@bottle.get('/websocket', apply=[websocket])
-def chat(ws):
-    users.add(ws)
-    while True:
-        msg = ws.receive()
-        if msg is not None:
-            for u in users:
-                u.send(msg)
-        else:
-            break
-    users.remove(ws)
-
 
 # viot
 @bottle.hook('after_request')
