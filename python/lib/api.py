@@ -16,18 +16,16 @@ def setConfig(config):
 
 @bottle.get('/api/get/devices', method = 'GET')
 def process():
-	print(bottle.request.params.authkey)
-	if(not hasattr(bottle.request.query, 'authkey')):
+	if(not hasattr(bottle.request.query, 'authKey')):
 		return json.dumps({"status": "failure", "message": "authentication.unauthorized"})
-	print("okay we got it it is not none")
-	print(bottle.request.params)
-	auth = viotApi.auth(bottle.request.params.authkey)
+
+	auth = viotApi.auth(bottle.request.query.authKey)
 	if(not auth):
-		return json.dumps("")
+		return json.dumps({"status": "failure", "message": "authentication.unauthorized"})
 
 	devices = []
 	for device, details in _config.settings["devices"].items():
-
+		
 		effects = {"reactive":[], "nreactive":[]}
 
 		for effect, details in _boards[device].visualizer.effects.items():

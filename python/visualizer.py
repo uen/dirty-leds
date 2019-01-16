@@ -44,16 +44,16 @@ class Visualizer():
         self.effects["Wave"] = Wave(self)
 
         from effects.runner import RunnerReactive
-        self.effects["RunnerReactive"] = RunnerReactive(self)
+        self.effects["Reactive Runner"] = RunnerReactive(self)
 
         from effects.auto import Auto
         self.effects["Auto"] = Auto(self)
 
-        from effects.multiple import Multiple
-        self.effects["Multiple"] = Multiple(self)
-
         from effects.calibration import Calibration
         self.effects["Calibration"] = Calibration(self)
+
+        from effects.multiple import Multiple
+        self.effects["Multiple"] = Calibration(self)
 
         from effects.fade import Fade
         self.effects["Fade"] = Fade(self)
