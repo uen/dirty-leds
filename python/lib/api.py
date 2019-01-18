@@ -1,9 +1,25 @@
-import lib.bottle as bottle
 import json
 import numpy
-from .viot import viot
+from .vendor.validation import (
+	validate_int,
+	validate_float,
+	validate_structure,
+	validate_bool,
+	validate_text
+)
+from .viot import viot as viot_
 
-viotApi = viot("jfkdfg")
+
+viot = viot_("jfkdfg")
+
+def validateInput(value, schema=None):
+
+	try:
+		validate_structure(value, schema=schema)
+	except Exception as error:
+		return str(error)
+
+vi = validateInput
 
 def setBoards(boards):
 	global _boards;
@@ -14,18 +30,10 @@ def setConfig(config):
 	_config = config;
 
 
-@bottle.get('/api/get/devices', method = 'GET')
-def process():
-	if(not hasattr(bottle.request.query, 'authKey')):
-		return json.dumps({"status": "failure", "message": "authentication.unauthorized"})
-
-	auth = viotApi.auth(bottle.request.query.authKey)
-	if(not auth):
-		return json.dumps({"status": "failure", "message": "authentication.unauthorized"})
-
+@viot.action('get/devices')
+def process(data):
 	devices = []
 	for device, details in _config.settings["devices"].items():
-		
 		effects = {"reactive":[], "nreactive":[]}
 
 		for effect, details in _boards[device].visualizer.effects.items():
@@ -68,53 +76,59 @@ def process():
 			"effects":			effects
 		})
 
-	return json.dumps({
-		"devices":devices
+	return {"devices" : devices}
+
+
+
+@viot.action('get/brightness')
+def process(data):
+	return {"brightness" : _config.settings["brightness"]}
+
+@viot.action('set/brightness')
+def process(data):
+	ve = vi(data, schema={
+		'brightness': validate_float(min_value=0.0, max_value=1.0)
 	})
+	if(ve): return ve
 
-
-
-@bottle.get('/api/get/brightness', method = 'GET')
-def process():
-	return json.dumps({"brightness": _config.settings["brightness"]})
-
-
-@bottle.get('/api/set/brightness', method = 'GET')
-def process():
-	if (not hasattr(bottle.request.params, 'brightness')):
-		return json.dumps({"status": "failure", "message": "brightness error"})
-	_config.settings["brightness"] = numpy.float64(bottle.request.params.brightness)
-	return json.dumps({"status": "ok"})
+	_config.settings["brightness"] = numpy.float64(data['brightness'])
+	return True
 
 	
-@bottle.get('/api/set/sync', method = 'GET')
-def process():
-	_config.settings["sync"] = bottle.request.params.sync != "false"
-	return json.dumps({"status": "ok"})
+@viot.action('set/sync')
+def process(data):
+	ve = vi(data, schema={
+		'sync': validate_bool()
+	})
+	if(ve): return ve
 
+	_config.settings["sync"] = data['sync']
+	return True
 
+@viot.action('get/sync')
+def process(data):
+	return {"sync" : _config.settings["sync"]}
 
-@bottle.get('/api/get/sync', method = 'GET')
-def process():
-	return json.dumps({"sync": _config.settings["sync"]})
+@viot.action("set/effect")
+def process(data):
+	ve = vi(data, schema={"device" : validate_text(), "effect" : validate_text()})
+	if(ve): return ve
 
-@bottle.get('/api/set/effect', method = 'GET')
-def process():
 	foundDevice = None
 	foundEffect = None
 
-	device_ = bottle.request.params.device
-	effect_ = bottle.request.params.effect
+	device_ = data['device']
+	effect_ = data['effect']
 	
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
 
+	if(foundDevice is None):
+		return "device not found"
+
 	if(_config.settings["sync"]):
 		foundDevice = next(iter(_config.settings["devices"]))
-	if(foundDevice is None):
-		return json.dumps({"error" : "device not found"})
-
 
 
 	for effect, details in _boards[foundDevice].visualizer.effects.items():
@@ -125,39 +139,36 @@ def process():
 		if(effect==effect_):
 			foundEffect = effect
 
-
 	if(foundEffect is None):
-		return json.dumps({"error": "effect not found"})
+		return "effect not found"
 
 	if _config.settings["sync"]:
 		for device in _config.settings["devices"]:
-			print(device)
 			_config.settings["devices"][device]["configuration"]["current_effect"] = foundEffect
 	else:		
 		_config.settings["devices"][foundDevice]["configuration"]["current_effect"] = foundEffect
 
-	return json.dumps({"status": "ok"})
+	return True
 
+@viot.action('set/frequency/max')
+def process(data):
+	ve = vi(data, schema={"device" : validate_text(), "value" : validate_int(
+		max_value=20000, 
+		min_value=_config.settings["devices"][device]["configuration"]["MIN_FREQUENCY"]
+	)})
+	if(ve): return ve
 
-
-
-
-@bottle.get('/api/set/frequency/max', method = 'GET')
-def process():
 	foundDevice = None
  	
-	device_ = bottle.request.params.device
-	value_ = bottle.request.params.value
-
-	if(value_ is None):
-		return json.dumps({"error" : "invalid value"})
+	device_ = data['device']
+	value_ = data['value']
 
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
 
 	if(foundDevice is None):
-		return json.dumps({"error" : "device not found"})
+		return "Device not found"
 
 	value_ = int(value_)
 
@@ -165,27 +176,29 @@ def process():
 	_config.settings["devices"][device]["configuration"]["MAX_FREQUENCY"] = value_
 	_boards[device].signalProcessor.create_mel_bank()
 
-	return json.dumps({"status": "ok"})
+	return True
 
 
 
 
-@bottle.get('/api/set/frequency/min', method = 'GET')
-def process():
-	foundDevice = None
+@viot.action('set/frequency/min')
+def process(data):
+	ve = vi(data, schema={"device" : validate_text(), "value" : validate_int(
+		max_value=_config.settings["devices"][device]["configuration"]["MAX_FREQUENCY"]-1,
+		min_value=0
+	)})
+	if(ve): return ve
+
  	
-	device_ = bottle.request.params.device
-	value_ = bottle.request.params.value
-
-	if(value_ is None):
-		return json.dumps({"error" : "invalid value"})
+	device_ = data['device']
+	value_ = data['value']
 
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
 
 	if(foundDevice is None):
-		return json.dumps({"error" : "device not found"})
+		return "Device not found"
 
 	value_ = int(value_)
 
@@ -193,19 +206,26 @@ def process():
 
 	_config.settings["devices"][device]["configuration"]["MIN_FREQUENCY"] = value_
 
-	return json.dumps({"status": "ok"})
+	return True
 
-@bottle.get('/api/set/option', method = 'GET')
-def process():
+@viot.action('set/option')
+def process(data):
+	ve = vi(data, schema={
+		"device" : validate_text(),
+		"effect" : validate_text(),
+		"option" : validate_text(),
+		"value"  : validate_text()})
+	if(ve): return ve
+
 	foundDevice = None
 	foundEffect = None
 	foundOption = None
 
 
-	device_ = bottle.request.params.device
-	effect_ = bottle.request.params.effect
-	option_ = bottle.request.params.option
-	value_ = bottle.request.params.value
+	device_ = data['device']
+	effect_ = data['effect']
+	option_ = data['option']
+	value_ = data['value']
 	useAll_ = _config.settings["sync"]
 
 	for device, details in _config.settings["devices"].items():
@@ -217,30 +237,27 @@ def process():
 		foundDevice = next(iter(_config.settings["devices"]))
 
 	if(foundDevice is None):
-		return json.dumps({"error" : "device not found"})
+		return  "Device not found"
 
 	for effect, details in _boards[foundDevice].visualizer.effects.items():
 		if(effect == effect_):
 			foundEffect = effect
 
 	if(foundEffect is None):
-		return json.dumps({"error": "effect not found"})
+		return "Effect not found"
 
 	for option in _boards[foundDevice].effectConfig[foundEffect]:
 		if(option==option_):
 			foundOption = option
 
 	if(foundOption is None):
-		return json.dumps({"error": "effect option not found"})
-
-	# Needs code adding to check the value type is correct
-
+		return "Effect option not found"
 
 	try:
 		value = json.loads(value_)
 		value_ = value["value"]
 	except Exception as e:
-		return json.dumps({"error": "invalid value"})
+		return "Invalid value"
 
 
 	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], int):
@@ -257,30 +274,4 @@ def process():
 			_boards[device].effectConfig[foundEffect][foundOption] = value_
 	else:
 		_boards[foundDevice].effectConfig[foundEffect][foundOption] = value_
-	return json.dumps({"status": "ok"})
-
-
-#@bottle.get('/socket', apply=[websocket])
-#def socket():
-#	while True:
-#		msg = ws.receive()
-#		if msg is not None:
-#			ws.send(msg)
-#		else: break
-
-users = set()
-
-# viot
-@bottle.hook('after_request')
-def cors():
-    """
-    You need to add some headers to each request.
-    Don't use the wildcard '*' for Access-Control-Allow-Origin in production.
-    """
-    bottle.response.headers['Access-Control-Allow-Origin'] = '*'
-    bottle.response.headers['Access-Control-Allow-Methods'] = 'PUT, GET, POST, DELETE, OPTIONS'
-    bottle.response.headers['Access-Control-Allow-Headers'] = 'Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token'
-
-@bottle.get('/api/health', method = 'GET')
-def process():
-	return json.dumps({"status" : "ok"})
+	return True

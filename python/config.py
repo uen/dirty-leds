@@ -45,7 +45,7 @@ settings = {                                                      # All settings
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Multiple"             # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Single"             # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.

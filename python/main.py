@@ -134,13 +134,7 @@ api.setConfig(config)
 def doStream():
     microphone.start_stream(microphone_update)
 
-def doApi():
-    bottle.run(host='127.0.0.1', port=8082)
 
 if __name__ == "__main__":
-    apiThread = Thread(target=doApi)
-    apiThread.daemon = True
-    apiThread.start()
-
     streamThread = Thread(target=doStream)
     streamThread.start()

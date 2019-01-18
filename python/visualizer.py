@@ -145,8 +145,6 @@ class Visualizer():
         for key in self.effects.keys():
             allEffects[key] = key
 
-        print(allEffects)
-
         self.dynamic_effects_config = {"Energy":[["blur", "Blur", "float_slider", (0.1,4.0,0.1)],
                                                  ["scale", "Scale", "float_slider", (0.4,1.0,0.05)],
                                                  ["r_multiplier", "Red", "float_slider", (0.05,1.0,0.05)],

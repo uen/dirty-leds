@@ -3,38 +3,96 @@ import numpy as np
 import config as config
 import lib.melbank as melbank
 from scipy.ndimage.filters import gaussian_filter1d
+from threading import Thread
+import http.client
+import time
+import socketio
 
 
 
 import requests
 from urllib.parse import quote
 
+apiKey = 'c9a8c01edd3148fac2f5b97732d07696'
+module = 'dirty-leds'
+
+
+
+## need something to pick if to use bridge or not here???
+
+
+actionHandlers = {}
+sio = socketio.Client()
+class viotSocket:
+    wsUrl = ''
+    def __init__(self, url):
+        self.wsUrl = url
+
+        sio.connect(url)
+        sio.wait()
+    
+    @sio.on('connect')
+    def on_connect():
+        print('viot: Connection established')
+
+    @sio.on('disconnect')
+    def on_disconnect():
+        print('viot: Disconnected')
+
+    @sio.on('action')
+    def on_action(data):
+        if not ('request' in data and 'action' in data and 'data' in data):
+            print('viot: Received invalid request ID')
+            return
+
+        if(data['action'] in actionHandlers):
+            res = actionHandlers[data['action']](data['data'])
+            if(isinstance(res, str)):
+                sio.emit('response', {'request' : data['request'], 'status' : 'failure', 'message' : res})
+
+                return
+            sio.emit('response', {'request' : data['request'], 'status' : 'ok', 'data' : res})
+        else:
+            sio.emit('response', {'request' : data['request'], 'status' : 'failure', 'message' : 'Action handler not found'})
 
 class viot:
     uniq = ''
+    connected = False
     def __init__(self, uniq):
         self.uniq = uniq
-    def auth(self, authKey):
-        print(self.uniq + "is self uniq")
-        print("auth key is ", authKey)
-        uniq = quote(self.uniq, safe='')
-        authKey = quote(authKey, safe='')
-        print('http://maninet:8888/api/module/verify?uniq='+uniq+"&authkey="+authKey)
-        r = requests.get('http://maninet:8888/api/module/verify?uniq='+uniq+"&authkey="+authKey)
-        print(r)
-        if(not r):
-            print('viot: HTTP authentication failure')
-            return False
+        print('viot: Attempting to connect to https://viot.uk')
+        
+        while self.connected == False:
+            authUrl = 'https://viot.uk/api/bridge/auth?apikey={apikey}&uniq={uniq}&module={module}'.format(apikey = apiKey, uniq = uniq, module = module)
+            r = requests.get(authUrl)
+            if(not r):
+                print('viot: Could not establish connection with server. Retrying in 5s...')
+                time.sleep(5)
+                continue
 
-        resp = r.json()
-        if(not resp):
-            print('viot: HTTP authentication response failure')
-            return False
+            resp = r.json()
+            if(not resp):
+                print('viot: Invalid response from server. Retrying in 5s...')
+                time.sleep(5)
+                continue
 
-        if (resp['status']=='ok'):
-            return resp['data']
-        else:
-            print("viot: Authentication failure")
-            print(resp)
-            return False
-      
+            self.connected = True
+            if(resp['status']=='ok'):
+                print('viot: Authorized successfully')
+                self.beginSocket(resp['data']['socket'], resp['data']['authkey'])
+            else:
+                print("viot: "+resp['message'])
+                exit()
+
+                return
+    
+    def beginSocket(self, url, authKey):
+        socketThread = Thread(target=viotSocket, args=[url + "?uniq="+self.uniq+"&authkey="+authKey])
+        socketThread.daemon = True
+        socketThread.start()
+
+    def action(self, actionName):
+        def wrapper(func):
+            actionHandlers[actionName] = func
+        return wrapper
+
