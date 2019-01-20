@@ -22,7 +22,9 @@ module = 'dirty-leds'
 
 
 actionHandlers = {}
-sio = socketio.Client()
+sio = socketio.Client(engineio_logger=True, logger=True, reconnection=True, reconnection_delay=5) 
+
+
 class viotSocket:
     wsUrl = ''
     def __init__(self, url):
@@ -30,17 +32,16 @@ class viotSocket:
 
         sio.connect(url)
         sio.wait()
+
     
     @sio.on('connect')
     def on_connect():
         print('viot: Connection established')
 
-    @sio.on('disconnect')
-    def on_disconnect():
-        print('viot: Disconnected')
 
     @sio.on('action')
     def on_action(data):
+        print('viot: action')
         if not ('request' in data and 'action' in data and 'data' in data):
             print('viot: Received invalid request ID')
             return
@@ -55,44 +56,62 @@ class viotSocket:
         else:
             sio.emit('response', {'request' : data['request'], 'status' : 'failure', 'message' : 'Action handler not found'})
 
+    @sio.on('disconnect')
+    def on_disconnect():
+        print('disconnected from server')
+
+    def ping():
+        print('pinging...')
+
 class viot:
-    uniq = ''
-    connected = False
+    instance = None
     def __init__(self, uniq):
-        self.uniq = uniq
-        print('viot: Attempting to connect to https://viot.uk')
+        print('we are here')
+        if(not viot.instance):
+            viot.instance = viot.__viot(uniq)
         
-        while self.connected == False:
-            authUrl = 'https://viot.uk/api/bridge/auth?apikey={apikey}&uniq={uniq}&module={module}'.format(apikey = apiKey, uniq = uniq, module = module)
-            r = requests.get(authUrl)
-            if(not r):
-                print('viot: Could not establish connection with server. Retrying in 5s...')
-                time.sleep(5)
-                continue
+    def __getattr__(self, name):
+        return getattr(self.instance, name)
 
-            resp = r.json()
-            if(not resp):
-                print('viot: Invalid response from server. Retrying in 5s...')
-                time.sleep(5)
-                continue
+    class __viot:
 
-            self.connected = True
-            if(resp['status']=='ok'):
-                print('viot: Authorized successfully')
-                self.beginSocket(resp['data']['socket'], resp['data']['authkey'])
-            else:
-                print("viot: "+resp['message'])
-                exit()
+        uniq = ''
+        connected = False
+        def __init__(self, uniq):
+            self.uniq = uniq
+            print('viot: Attempting to connect to https://viot.uk')
+            
+            while self.connected == False:
+                authUrl = 'https://viot.uk/api/bridge/auth?apikey={apikey}&uniq={uniq}&module={module}'.format(apikey = apiKey, uniq = uniq, module = module)
+                r = requests.get(authUrl)
+                if(not r):
+                    print('viot: Could not establish connection with server. Retrying in 5s...')
+                    time.sleep(5)
+                    continue
 
-                return
-    
-    def beginSocket(self, url, authKey):
-        socketThread = Thread(target=viotSocket, args=[url + "?uniq="+self.uniq+"&authkey="+authKey])
-        socketThread.daemon = True
-        socketThread.start()
+                resp = r.json()
+                if(not resp):
+                    print('viot: Invalid response from server. Retrying in 5s...')
+                    time.sleep(5)
+                    continue
 
-    def action(self, actionName):
-        def wrapper(func):
-            actionHandlers[actionName] = func
-        return wrapper
+                self.connected = True
+                if(resp['status']=='ok'):
+                    print('viot: Authorized successfully')
+                    self.beginSocket(resp['data']['socket'], resp['data']['authkey'])
+                else:
+                    print("viot: "+resp['message'])
+                    exit()
+
+                    return
+        
+        def beginSocket(self, url, authKey):
+            socketThread = Thread(target=viotSocket, args=[url + "?uniq="+self.uniq+"&authkey="+authKey])
+            socketThread.daemon = True
+            socketThread.start()
+
+        def action(self, actionName):
+            def wrapper(func):
+                actionHandlers[actionName] = func
+            return wrapper
 
