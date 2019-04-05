@@ -52,7 +52,7 @@ class Scroll(Effect):
         if config.settings["devices"][board.board]["effect_opts"]["Scroll"]["mirror"]:
             p = np.concatenate((board.visualizer.output[:, ::-2], board.visualizer.output[:, ::2]), axis=1)
         else:
-            p = visualizer.output
+            p = board.visualizer.output
         return p
 
         

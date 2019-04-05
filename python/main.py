@@ -108,8 +108,8 @@ def microphone_update(audio_samples):
     if time.time() - 0.5 > prev_fps_update:
         prev_fps_update = time.time()
 
-    if config.settings["configuration"]["displayFPS"]:
-        print('FPS {:.0f} / {:.0f}'.format(fps, config.settings["configuration"]["FPS"]))
+    # if config.settings["configuration"]["displayFPS"]:
+    #print('FPS {:.0f} / {:.0f}'.format(fps, config.settings["configuration"]["FPS"]))
 
 
 

@@ -52,14 +52,17 @@ class Visualizer():
         from effects.calibration import Calibration
         self.effects["Calibration"] = Calibration(self)
 
-        from effects.multiple import Multiple
-        self.effects["Multiple"] = Calibration(self)
-
         from effects.fade import Fade
         self.effects["Fade"] = Fade(self)
 
         from effects.gradient import Gradient
         self.effects["Gradient"] = Gradient(self)
+
+        from effects.mood import Mood
+        self.effects["Mood"] = Mood(self)
+
+        from effects.stars import Stars
+        self.effects["Stars"] = Stars(self)
 
         from effects.single import Single
         self.effects["Single"] = Single(self)
@@ -159,11 +162,6 @@ class Visualizer():
                                                     ["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                     ["blur", "Blur", "float_slider", (0.1,4.0,0.1)]
                                                 ],
-                                    "Multiple": [
-                                                    ["a", "Effect A", "dropdown", allEffects],
-                                                    ["b", "Effect B", "dropdown", allEffects],
-                                                    ["c", "Effect C", "dropdown", allEffects]
-                                                ],
                                         "Auto": [
                                                     ["timer", "Timer", "slider", (100, 20000, 100)]
                                                 ],
@@ -177,7 +175,7 @@ class Visualizer():
                                        "Scroll":[["lows_color", "Lows Color", "dropdown", config.settings["colors"]],
                                                  ["mids_color", "Mids Color", "dropdown", config.settings["colors"]],
                                                  ["high_color", "Highs Color", "dropdown", config.settings["colors"]],
-                                                 ["blur", "Blur", "float_slider", (0.05,4.0,0.05)],
+                                                 ["blur", "Blur", "float_slider", (0.95,1,0.005)],
                                                  ["mirror", "Mirror", "checkbox"],
                                                  ["decay", "Decay", "float_slider", (0.97,1.0,0.0005)],
                                                  ["speed", "Speed", "slider", (1,5,1)]],
@@ -195,9 +193,19 @@ class Visualizer():
                                                  ["flip_lr", "Flip LR", "checkbox"],
                                                  ["mirror", "Mirror", "checkbox"],
                                                  ["reverse_roll", "Reverse Roll", "checkbox"]],
+                                        "Stars":[["star_rate", "Star amount", "float_slider", (0.01, 1.0, 0.01)],
+                                                 ["star_decay", "Star Decay", "float_slider", (1.0, 10.0, 0.1)],
+                                                 ["star_speed", "Star Speed", "float_slider", (0.0001, 0.001, 0.0001)]],
+                                      "Mood":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
+                                                 ["roll_speed", "Roll Speed", "slider", (0,8,1)],
+                                                 ["mirror", "Mirror", "checkbox"],
+                                                 ["fast", "Fast", "checkbox"],
+                                                 ["reverse", "Reverse", "checkbox"]],
+
                                      "Gradient":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["roll_speed", "Roll Speed", "slider", (0,8,1)],
                                                  ["mirror", "Mirror", "checkbox"],
+                                                 ["fast", "Fast", "checkbox"],
                                                  ["reverse", "Reverse", "checkbox"]],
                                          "Runner":[["times", "times", "slider", (0.05,1,0.05)],
                                                  ["divide", "divide", "slider", (1,15,1)],

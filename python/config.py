@@ -1,6 +1,7 @@
 """Default settings and configuration for audio reactive LED strip"""
 from __future__ import print_function
 from __future__ import division
+import copy
 import os
 
 use_defaults = {"configuration": True,                           # See notes below for detailed explanation
@@ -8,6 +9,83 @@ use_defaults = {"configuration": True,                           # See notes bel
                 "devices": True,
                 "colors": True,
                 "gradients": True}
+
+effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur to apply
+                                                   "scale":0.9,                     # Width of effect on strip
+                                                   "r_multiplier": 1.0,             # How much red
+                                                   "mirror": True,                  # Reflect output down centre of strip
+                                                   "g_multiplier": 1.0,             # How much green
+                                                   "b_multiplier": 1.0},            # How much blue
+                                     "Wave":      {"color_wave": "Red",             # Colour of moving bit
+                                                   "color_flash": "White",          # Colour of flashy bit
+                                                   "wipe_len":7,                    # Initial length before beat
+                                                   "color_mode": "Spectral",        # Color of gradient
+                                                   "decay": 0.9,                    # How quickly the flash fades away 
+                                                   "wipe_speed":1},                 # Number of pixels added to colour bit every frame
+                                    
+                                       "Spectrum":{"blur": 1.0, "color_mode":"Spectral"},
+                                
+                                       
+                                     "Wavelength":{"roll_speed": 0,                 # How fast (if at all) to cycle colour overlay across strip
+                                                   "color_mode": "Spectral",        # Colour gradient to display
+                                                   "mirror": False,                 # Reflect output down centre of strip
+                                                   "reverse_grad": False,           # Flip (LR) gradient
+                                                   "reverse_roll": False,           # Reverse movement of gradient roll
+                                                   "blur": 1.0,                     # Amount of blur to apply
+                                                   "flip_lr":False},                # Flip output left-right
+                                     "Scroll":    {"lows_color": "Red",             # Colour of low frequencies
+                                                   "mids_color": "Green",           # Colour of mid frequencies
+                                                   "high_color": "Blue",            # Colour of high frequencies
+                                                   "decay": 0.995,                  # How quickly the colour fades away as it moves
+                                                   "speed": 1,                      # Speed of scroll
+                                                   "mirror": True,                  # Reflect output down centre of strip
+                                                   "r_multiplier": 1.0,             # How much red
+                                                   "g_multiplier": 1.0,             # How much green
+                                                   "b_multiplier": 1.0,             # How much blue
+                                                   "blur": 0.2},                    # Amount of blur to apply
+                                     "Power":     {"color_mode": "Spectral",        # Colour gradient to display
+                                                   "s_count": 20,                   # Initial number of sparks
+                                                   "s_color": "White",              # Color of sparks
+                                                   "mirror": True,                  # Mirror output down central axis
+                                                   "flip_lr":False},                # Flip output left-right
+                                     "Single":    {"color": "Purple"},              # Static color to show
+                                     "Auto":      {"timer": 500},
+                                     "Beat":      {"color": "Red",                  # Colour of beat flash
+                                                   "decay": 0.7},                   # How quickly the flash fades away
+                                     "Bars":      {"resolution":4,                  # Number of "bars"
+                                                   "color_mode":"Spectral",         # Multicolour mode to use
+                                                   "roll_speed":0,                  # How fast (if at all) to cycle colour colours across strip
+                                                   "mirror": False,                 # Mirror down centre of strip
+                                                   "reverse_roll": False,           # Reverse movement of gradient roll
+                                                   "flip_lr":False},                # Flip output left-right
+                                        "Stars":   {"star_rate" : 0.29,
+                                                    "star_decay" : 9,
+                                                    "star_speed" : 0.0006},
+                                      "Mood":  {"color_mode":"Spectral",         # Colour gradient to display
+                                                   "roll_speed": 1,
+                                                   "delay" : 0.1,                 # How fast (if at all) to cycle colour colours across strip
+                                                   "fast": False,                   # Fast/Slow
+                                                   "mirror": False,                 # Mirror gradient down central axis
+                                                   "reverse": False},               # Reverse movement of gradient
+
+                                     "Gradient":  {"color_mode":"Spectral",         # Colour gradient to display
+                                                   "roll_speed": 0,
+                                                   "fast": False,                   # Fast/Slow
+                                                   "mirror": False,                 # Mirror gradient down central axis
+                                                   "reverse": False},               # Reverse movement of gradient
+                                     "Fade":      {"color_mode":"Spectral",         # Colour gradient to fade through
+                                                   "roll_speed": 1,                 # How fast (if at all) to fade through colours
+                                                   "reverse": False},               # Reverse "direction" of fade (r->g->b or r<-g<-b)
+                                     "Calibration":{"r": 100,
+                                                    "g": 100,
+                                                    "b": 100},
+                                     
+                                      "Sleep": {"hour":6, "minute":9, "minutes_fade": 30},
+                                      "Fire": {"delay":0.04},
+                                      "Runner": {"color_mode":"Spectral", "times":0.15, "add":0.1, "divide":4.7,"blur":0},
+                                      "RunnerReactive": {"color_mode":"Fruity", "times":0.90, "add":0.8, "divide":18,"blur":1}
+                                     }
+
 
 settings = {                                                      # All settings are stored in this dict
     "sync" : True,
@@ -24,15 +102,9 @@ settings = {                                                      # All settings
                   
                      },
 
-    "GUI_opts":{"Graphs":True,                                    # Which parts of the gui to show
-                "Reactive Effect Buttons":True,
-                "Non Reactive Effect Buttons":True,
-                "Frequency Range":True,
-                "Effect Options":True},
-
     # All devices and their respective settings. Indexed by name, call each one what you want.
     "devices":{
-     "Bed":{
+     "Wall Strip 1":{
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
                                        "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
@@ -45,78 +117,15 @@ settings = {                                                      # All settings
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Single"             # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Stars"             # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
                       # Usage: config.settings["devices"][name]["effect_opts"][effect][option]
-                      "effect_opts":{"Energy":    {"blur": 1,                       # Amount of blur to apply
-                                                   "scale":0.9,                     # Width of effect on strip
-                                                   "r_multiplier": 1.0,             # How much red
-                                                   "mirror": True,                  # Reflect output down centre of strip
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0},            # How much blue
-                                     "Wave":      {"color_wave": "Red",             # Colour of moving bit
-                                                   "color_flash": "White",          # Colour of flashy bit
-                                                   "wipe_len":7,                    # Initial length before beat
-                                                   "color_mode": "Spectral",        # Color of gradient
-                                                   "decay": 0.9,                    # How quickly the flash fades away 
-                                                   "wipe_speed":1},                 # Number of pixels added to colour bit every frame
-                                    
-                                       "Spectrum":{"blur": 1.0, "color_mode":"Spectral"},
-                                       "Multiple":{"a": "Fade", "b":"Scroll", "c":""},
-                                       
-                                     "Wavelength":{"roll_speed": 0,                 # How fast (if at all) to cycle colour overlay across strip
-                                                   "color_mode": "Spectral",        # Colour gradient to display
-                                                   "mirror": False,                 # Reflect output down centre of strip
-                                                   "reverse_grad": False,           # Flip (LR) gradient
-                                                   "reverse_roll": False,           # Reverse movement of gradient roll
-                                                   "blur": 1.0,                     # Amount of blur to apply
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Scroll":    {"lows_color": "Red",             # Colour of low frequencies
-                                                   "mids_color": "Green",           # Colour of mid frequencies
-                                                   "high_color": "Blue",            # Colour of high frequencies
-                                                   "decay": 0.995,                  # How quickly the colour fades away as it moves
-                                                   "speed": 4,                      # Speed of scroll
-                                                   "mirror": True,                  # Reflect output down centre of strip
-                                                   "r_multiplier": 1.0,             # How much red
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0,             # How much blue
-                                                   "blur": 0.2},                    # Amount of blur to apply
-                                     "Power":     {"color_mode": "Spectral",        # Colour gradient to display
-                                                   "s_count": 20,                   # Initial number of sparks
-                                                   "s_color": "White",              # Color of sparks
-                                                   "mirror": True,                  # Mirror output down central axis
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Single":    {"color": "Purple"},              # Static color to show
-                                     "Auto":      {"timer": 500},
-                                     "Beat":      {"color": "Red",                  # Colour of beat flash
-                                                   "decay": 0.7},                   # How quickly the flash fades away
-                                     "Bars":      {"resolution":4,                  # Number of "bars"
-                                                   "color_mode":"Spectral",         # Multicolour mode to use
-                                                   "roll_speed":0,                  # How fast (if at all) to cycle colour colours across strip
-                                                   "mirror": False,                 # Mirror down centre of strip
-                                                   "reverse_roll": False,           # Reverse movement of gradient roll
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Gradient":  {"color_mode":"Spectral",         # Colour gradient to display
-                                                   "roll_speed": 0,                 # How fast (if at all) to cycle colour colours across strip
-                                                   "mirror": False,                 # Mirror gradient down central axis
-                                                   "reverse": False},               # Reverse movement of gradient
-                                     "Fade":      {"color_mode":"Spectral",         # Colour gradient to fade through
-                                                   "roll_speed": 1,                 # How fast (if at all) to fade through colours
-                                                   "reverse": False},               # Reverse "direction" of fade (r->g->b or r<-g<-b)
-                                     "Calibration":{"r": 100,
-                                                    "g": 100,
-                                                    "b": 100},
-                                     
-                                      "Sleep": {"hour":6, "minute":9, "minutes_fade": 30},
-                                      "Fire": {"delay":0.04},
-                                      "Runner": {"color_mode":"Spectral", "times":0.15, "add":0.1, "divide":4.7,"blur":0},
-                                      "RunnerReactive": {"color_mode":"Fruity", "times":0.90, "add":0.8, "divide":18,"blur":1}
-                                     }
-                                  },
+                      "effect_opts": copy.deepcopy(effectOptions)
+      },
                               
-        "Door":{
+        "Wall Strip 2":{
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
                                        "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
@@ -129,78 +138,14 @@ settings = {                                                      # All settings
                                        "N_FFT_BINS": 24,                                # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Runner"                   # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Stars"                   # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
                       # Usage: config.settings["devices"][name]["effect_opts"][effect][option]
-                      "effect_opts":{"Energy":    {"blur": 1,                       # Amount of blur to apply
-                                                   "scale":0.9,                     # Width of effect on strip
-                                                   "r_multiplier": 1.0,             # How much red
-                                                   "mirror": True,                  # Reflect output down centre of strip
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0},            # How much blue
-                                     "Wave":      {"color_wave": "Red",             # Colour of moving bit
-                                                   "color_flash": "White",          # Colour of flashy bit
-                                                   "wipe_len":7,                    # Initial length before beat
-                                                   "color_mode": "Spectral",        # Color of gradient
-                                                   "decay": 0.9,                    # How quickly the flash fades away 
-                                                   "wipe_speed":1},                 # Number of pixels added to colour bit every frame
-                                    
-                                       "Spectrum":{"blur": 1.0, "color_mode":"Spectral"},
-                                       
-                                     "Wavelength":{"roll_speed": 0,                 # How fast (if at all) to cycle colour overlay across strip
-                                                   "color_mode": "Spectral",        # Colour gradient to display
-                                                   "mirror": False,                 # Reflect output down centre of strip
-                                                   "reverse_grad": False,           # Flip (LR) gradient
-                                                   "reverse_roll": False,           # Reverse movement of gradient roll
-                                                   "blur": 1.0,                     # Amount of blur to apply
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Scroll":    {"lows_color": "Red",             # Colour of low frequencies
-                                                   "mids_color": "Green",           # Colour of mid frequencies
-                                                   "high_color": "Blue",            # Colour of high frequencies
-                                                   "decay": 0.995,                  # How quickly the colour fades away as it moves
-                                                   "speed": 4,                      # Speed of scroll
-                                                   "mirror": True,                  # Reflect output down centre of strip
-                                                   "r_multiplier": 1.0,             # How much red
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0,             # How much blue
-                                                   "blur": 0.2},                    # Amount of blur to apply
-                                     "Power":     {"color_mode": "Spectral",        # Colour gradient to display
-                                                   "s_count": 20,                   # Initial number of sparks
-                                                   "s_color": "White",              # Color of sparks
-                                                   "mirror": True,                  # Mirror output down central axis
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Single":    {"color": "Purple"},              # Static color to show
-                                     "Auto":      {"timer": 500},
-                                     "Beat":      {"color": "Red",                  # Colour of beat flash
-                                                   "decay": 0.7},                   # How quickly the flash fades away
-                                     "Bars":      {"resolution":4,                  # Number of "bars"
-                                                   "color_mode":"Spectral",         # Multicolour mode to use
-                                                   "roll_speed":0,                  # How fast (if at all) to cycle colour colours across strip
-                                                   "mirror": False,                 # Mirror down centre of strip
-                                                   "reverse_roll": False,           # Reverse movement of gradient roll
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Gradient":  {"color_mode":"Spectral",         # Colour gradient to display
-                                                   "roll_speed": 0,                 # How fast (if at all) to cycle colour colours across strip
-                                                   "mirror": False,                 # Mirror gradient down central axis
-                                                   "reverse": False},               # Reverse movement of gradient
-                                     "Fade":      {"color_mode":"Spectral",         # Colour gradient to fade through
-                                                   "roll_speed": 1,                 # How fast (if at all) to fade through colours
-                                                   "reverse": False},               # Reverse "direction" of fade (r->g->b or r<-g<-b)
-                                     "Calibration":{"r": 100,
-                                                    "g": 100,
-                                                    "b": 100},
-                                     
-                                     "Multiple":{"a": "Scroll", "b":"", "c":""},
-
-                                     "Sleep": {"hour":6, "minute":9, "minutes_fade": 30},
-                                     "Fire": {"delay":0.04},
-                                     "Runner": {"color_mode":"Spectral", "times":0.6, "add":0.1, "divide":4.7,"blur":0},
-                                     "RunnerReactive": {"color_mode":"Fruity", "times":0.90, "add":0.8, "divide":18,"blur":1}
-                                     }
+                     "effect_opts": copy.deepcopy(effectOptions)
                                   },
-        "Shelf":{
+        "Wall Strip 3":{
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
                                        "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
@@ -213,161 +158,13 @@ settings = {                                                      # All settings
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Fire"                   # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Stars"                   # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
                       # Usage: config.settings["devices"][name]["effect_opts"][effect][option]
-                      "effect_opts":{"Energy":    {"blur": 1,                       # Amount of blur to apply
-                                                   "scale":0.9,                     # Width of effect on strip
-                                                   "r_multiplier": 1.0,             # How much red
-                                                   "mirror": True,                  # Reflect output down centre of strip
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0},            # How much blue
-                                     "Wave":      {"color_wave": "Red",             # Colour of moving bit
-                                                   "color_flash": "White",          # Colour of flashy bit
-                                                   "wipe_len":7,                    # Initial length before beat
-                                                   "color_mode": "Spectral",        # Color of gradient
-                                                   "decay": 0.9,                    # How quickly the flash fades away 
-                                                   "wipe_speed":1},                 # Number of pixels added to colour bit every frame
-                                    
-                                       "Spectrum":{"blur": 1.0, "color_mode":"Spectral"},
-                                       
-                                     "Wavelength":{"roll_speed": 0,                 # How fast (if at all) to cycle colour overlay across strip
-                                                   "color_mode": "Spectral",        # Colour gradient to display
-                                                   "mirror": False,                 # Reflect output down centre of strip
-                                                   "reverse_grad": False,           # Flip (LR) gradient
-                                                   "reverse_roll": False,           # Reverse movement of gradient roll
-                                                   "blur": 1.0,                     # Amount of blur to apply
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Scroll":    {"lows_color": "Red",             # Colour of low frequencies
-                                                   "mids_color": "Green",           # Colour of mid frequencies
-                                                   "high_color": "Blue",            # Colour of high frequencies
-                                                   "decay": 0.995,                  # How quickly the colour fades away as it moves
-                                                   "speed": 4,                      # Speed of scroll
-                                                   "mirror": True,                  # Reflect output down centre of strip
-                                                   "r_multiplier": 1.0,             # How much red
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0,             # How much blue
-                                                   "blur": 0.2},                    # Amount of blur to apply
-                                     "Power":     {"color_mode": "Spectral",        # Colour gradient to display
-                                                   "s_count": 20,                   # Initial number of sparks
-                                                   "s_color": "White",              # Color of sparks
-                                                   "mirror": True,                  # Mirror output down central axis
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Single":    {"color": "Purple"},              # Static color to show
-                                     "Auto":      {"timer": 500},
-                                     "Beat":      {"color": "Red",                  # Colour of beat flash
-                                                   "decay": 0.7},                   # How quickly the flash fades away
-                                     "Bars":      {"resolution":4,                  # Number of "bars"
-                                                   "color_mode":"Spectral",         # Multicolour mode to use
-                                                   "roll_speed":0,                  # How fast (if at all) to cycle colour colours across strip
-                                                   "mirror": False,                 # Mirror down centre of strip
-                                                   "reverse_roll": False,           # Reverse movement of gradient roll
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Gradient":  {"color_mode":"Spectral",         # Colour gradient to display
-                                                   "roll_speed": 0,                 # How fast (if at all) to cycle colour colours across strip
-                                                   "mirror": False,                 # Mirror gradient down central axis
-                                                   "reverse": False},               # Reverse movement of gradient
-                                     "Fade":      {"color_mode":"Spectral",         # Colour gradient to fade through
-                                                   "roll_speed": 1,                 # How fast (if at all) to fade through colours
-                                                   "reverse": False},               # Reverse "direction" of fade (r->g->b or r<-g<-b)
-                                     "Calibration":{"r": 100,
-                                                    "g": 100,
-                                                    "b": 100},
-                                      "Multiple":{"a": "Scroll", "b":"", "c":""},
-                                     
-                                      "Sleep": {"hour":6, "minute":9, "minutes_fade": 30},
-                                      "Fire": {"delay":0.04},
-                                      "Runner": {"color_mode":"Spectral", "times":0.6, "add":0.1, "divide":4.7,"blur":0},
-                                      "RunnerReactive": {"color_mode":"Fruity", "times":0.90, "add":0.8, "divide":18,"blur":1}
-                                     }
+                      "effect_opts": copy.deepcopy(effectOptions)
                                   },
-
-        "Lounge":{
-                      "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
-                                        # Required configuration for device. See below for all required keys per device
-                                       "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
-                                       "MAC_ADDR": "YOUR MAC ADDRESS HERE",             # MAC address of the ESP8266. Only used if AUTO_DETECT is True
-                                       "UDP_IP": "192.168.1.168",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
-                                       "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
-                                       "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
-                                         # Other configuration 
-                                       "N_PIXELS": 8,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
-                                       "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
-                                       "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
-                                       "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Fire"                   # Currently selected effect for this board, used as default when program launches
-                                      },
-    
-                      # Configurable options for this board's effects go in this dictionary.
-                      # Usage: config.settings["devices"][name]["effect_opts"][effect][option]
-                      "effect_opts":{"Energy":    {"blur": 1,                       # Amount of blur to apply
-                                                   "scale":0.9,                     # Width of effect on strip
-                                                   "r_multiplier": 1.0,             # How much red
-                                                   "mirror": True,                  # Reflect output down centre of strip
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0},            # How much blue
-                                     "Wave":      {"color_wave": "Red",             # Colour of moving bit
-                                                   "color_flash": "White",          # Colour of flashy bit
-                                                   "wipe_len":7,                    # Initial length before beat
-                                                   "color_mode": "Spectral",        # Color of gradient
-                                                   "decay": 0.9,                    # How quickly the flash fades away 
-                                                   "wipe_speed":1},                 # Number of pixels added to colour bit every frame
-                                    
-                                       "Spectrum":{"blur": 1.0, "color_mode":"Spectral"},
-                                       
-                                     "Wavelength":{"roll_speed": 0,                 # How fast (if at all) to cycle colour overlay across strip
-                                                   "color_mode": "Spectral",        # Colour gradient to display
-                                                   "mirror": False,                 # Reflect output down centre of strip
-                                                   "reverse_grad": False,           # Flip (LR) gradient
-                                                   "reverse_roll": False,           # Reverse movement of gradient roll
-                                                   "blur": 1.0,                     # Amount of blur to apply
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Scroll":    {"lows_color": "Red",             # Colour of low frequencies
-                                                   "mids_color": "Green",           # Colour of mid frequencies
-                                                   "high_color": "Blue",            # Colour of high frequencies
-                                                   "decay": 0.995,                  # How quickly the colour fades away as it moves
-                                                   "speed": 4,                      # Speed of scroll
-                                                   "mirror": True,                  # Reflect output down centre of strip
-                                                   "r_multiplier": 1.0,             # How much red
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0,             # How much blue
-                                                   "blur": 0.2},                    # Amount of blur to apply
-                                     "Power":     {"color_mode": "Spectral",        # Colour gradient to display
-                                                   "s_count": 20,                   # Initial number of sparks
-                                                   "s_color": "White",              # Color of sparks
-                                                   "mirror": True,                  # Mirror output down central axis
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Single":    {"color": "Purple"},              # Static color to show
-                                     "Auto":      {"timer": 500},
-                                     "Beat":      {"color": "Red",                  # Colour of beat flash
-                                                   "decay": 0.7},                   # How quickly the flash fades away
-                                     "Bars":      {"resolution":4,                  # Number of "bars"
-                                                   "color_mode":"Spectral",         # Multicolour mode to use
-                                                   "roll_speed":0,                  # How fast (if at all) to cycle colour colours across strip
-                                                   "mirror": False,                 # Mirror down centre of strip
-                                                   "reverse_roll": False,           # Reverse movement of gradient roll
-                                                   "flip_lr":False},                # Flip output left-right
-                                     "Gradient":  {"color_mode":"Spectral",         # Colour gradient to display
-                                                   "roll_speed": 0,                 # How fast (if at all) to cycle colour colours across strip
-                                                   "mirror": False,                 # Mirror gradient down central axis
-                                                   "reverse": False},               # Reverse movement of gradient
-                                     "Fade":      {"color_mode":"Spectral",         # Colour gradient to fade through
-                                                   "roll_speed": 1,                 # How fast (if at all) to fade through colours
-                                                   "reverse": False},               # Reverse "direction" of fade (r->g->b or r<-g<-b)
-                                     "Calibration":{"r": 100,
-                                                    "g": 100,
-                                                    "b": 100},
-                                      "Multiple":{"a": "Scroll", "b":"", "c":""},
-                                     
-                                      "Sleep": {"hour":6, "minute":9, "minutes_fade": 30},
-                                      "Fire": {"delay":0.04},
-                                      "Runner": {"color_mode":"Spectral", "times":0.6, "add":0.1, "divide":4.7,"blur":0},
-                                      "RunnerReactive": {"color_mode":"Fruity", "times":0.90, "add":0.8, "divide":18,"blur":1}
-                                     }
-                                  },                                  
-
 
 
 

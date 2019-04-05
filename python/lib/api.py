@@ -10,7 +10,6 @@ from .vendor.validation import (
 from .viot import viot as viot_
 
 
-viot = viot_("jfkdfg")
 
 def validateInput(value, schema=None):
 
@@ -101,7 +100,6 @@ def process(data):
 		'sync': validate_bool()
 	})
 	if(ve): return ve
-
 	_config.settings["sync"] = data['sync']
 	return True
 
@@ -154,7 +152,7 @@ def process(data):
 def process(data):
 	ve = vi(data, schema={"device" : validate_text(), "value" : validate_int(
 		max_value=20000, 
-		min_value=_config.settings["devices"][device]["configuration"]["MIN_FREQUENCY"]
+		min_value=20,
 	)})
 	if(ve): return ve
 
@@ -184,7 +182,7 @@ def process(data):
 @viot.action('set/frequency/min')
 def process(data):
 	ve = vi(data, schema={"device" : validate_text(), "value" : validate_int(
-		max_value=_config.settings["devices"][device]["configuration"]["MAX_FREQUENCY"]-1,
+		max_value=19999,
 		min_value=0
 	)})
 	if(ve): return ve
