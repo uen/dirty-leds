@@ -10,6 +10,7 @@ from .vendor.validation import (
 from .viot import viot as viot_
 
 
+viot = viot_("YOUR SPACE IDENTIFIER")
 
 def validateInput(value, schema=None):
 

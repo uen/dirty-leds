@@ -14,6 +14,7 @@ import socketio
 import requests
 from urllib.parse import quote
 
+apiKey = 'YOUR VIOT.UK API KEY'
 module = 'dirty-leds'
 
 
