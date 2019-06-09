@@ -68,4 +68,5 @@ Click the module. You should be able to change the effect and options.
 
 
 ** SUPPORT **
+
 I'm working on making this better. Add me on Discord (manol#7762) for help
