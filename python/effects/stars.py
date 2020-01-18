@@ -20,6 +20,7 @@ class Stars(Effect):
     def visualize(self, board, y):
         output = np.zeros((3,board.config["N_PIXELS"]))
         output[0][10] = 255
+        
 
         if random.random() < board.effectConfig["Stars"]["star_rate"]:
            self.stars[random.randint(0, board.config["N_PIXELS"]-1)] = 0
