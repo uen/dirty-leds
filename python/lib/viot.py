@@ -73,16 +73,6 @@ class viot:
 			if(not "defaultState" in options):
 				print("viot: Called with no defaultState!")
 
-			def update_state(self, state):
-
-				print("logged ne wstate change")
-				mqttClient.publish(self.emitTopic, json.dumps({
-					"command": "state",
-					"message": state
-				}))
-
-				viotStateListeners.append(update_state)
-
 			self.viotState = options["defaultState"]
 
 			if(not "apiKey" in options):
@@ -97,6 +87,15 @@ class viot:
 
 
 			self.beginMqtt(options)
+
+		def update_state(self, state):
+
+			print("logged ne wstate change")
+			mqttClient.publish(self.emitTopic, json.dumps({
+				"command": "state",
+				"message": state
+			}))
+
 
 		def on(self, command, callback):
 			if(not command in self.listeners):

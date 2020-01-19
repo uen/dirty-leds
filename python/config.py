@@ -104,20 +104,20 @@ settings = {                                                      # All settings
 
     # All devices and their respective settings. Indexed by name, call each one what you want.
     "devices":{
-     "Wall Strip 1":{
+     "Desk":{
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
                                        "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
                                        "MAC_ADDR": "YOUR MAC ADDRESS HERE",             # MAC address of the ESP8266. Only used if AUTO_DETECT is True
-                                       "UDP_IP": "192.168.1.151",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
+                                       "UDP_IP": "192.168.0.150",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
                                        "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
                                        "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
-                                       "N_PIXELS": 300,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
+                                       "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Stars"             # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Mood"             # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
@@ -125,40 +125,40 @@ settings = {                                                      # All settings
                       "effect_opts": copy.deepcopy(effectOptions)
       },
                               
-        "Wall Strip 2":{
+        "Bed":{
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
                                        "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
                                        "MAC_ADDR": "YOUR MAC ADDRESS HERE",             # MAC address of the ESP8266. Only used if AUTO_DETECT is True
-                                       "UDP_IP": "192.168.1.150",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
+                                       "UDP_IP": "192.168.0.151",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
                                        "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
                                        "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
-                                       "N_PIXELS": 300,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
+                                       "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
                                        "N_FFT_BINS": 24,                                # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Stars"                   # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Mood"                   # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
                       # Usage: config.settings["devices"][name]["effect_opts"][effect][option]
                      "effect_opts": copy.deepcopy(effectOptions)
                                   },
-        "Wall Strip 3":{
+        "TV":{
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
                                        "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
                                        "MAC_ADDR": "YOUR MAC ADDRESS HERE",             # MAC address of the ESP8266. Only used if AUTO_DETECT is True
-                                       "UDP_IP": "192.168.1.152",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
+                                       "UDP_IP": "192.168.0.152",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
                                        "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
                                        "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
-                                       "N_PIXELS": 300,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
+                                       "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Stars"                   # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Mood"                   # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
