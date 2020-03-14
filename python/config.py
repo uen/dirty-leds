@@ -89,7 +89,7 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
 
 settings = {                                                      # All settings are stored in this dict
     "sync" : True,
-    "brightness" : 0.3,
+    "brightness" : 0.8,
 
     "configuration":{  # Program configuration
                      'USE_GUI': False,                             # Whether to display the GUI
@@ -117,7 +117,7 @@ settings = {                                                      # All settings
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Mood"             # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Fire"             # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
@@ -138,7 +138,7 @@ settings = {                                                      # All settings
                                        "N_FFT_BINS": 24,                                # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Mood"                   # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Fire"                   # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
@@ -158,7 +158,7 @@ settings = {                                                      # All settings
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Mood"                   # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Fire"                   # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.

@@ -10,28 +10,19 @@ from threading import Thread
 import http.client
 import time
 import sys
+import traceback
 import json
-
-
-
-
 
 import requests
 from urllib.parse import quote
 
-
-
-
 import paho.mqtt.client as mqtt
-
-
-
 
 
 mqttClient = mqtt.Client()
 
 defaultOptions = {
-	"host": "192.168.0.108",
+	"host": "mqtt.viot.co.uk",
 	"port": 1883,
 	"debug": True
 }
@@ -89,8 +80,8 @@ class viot:
 			self.beginMqtt(options)
 
 		def update_state(self, state):
-
-			print("logged ne wstate change")
+			print("new state")
+			print(state)
 			mqttClient.publish(self.emitTopic, json.dumps({
 				"command": "state",
 				"message": state
@@ -193,6 +184,7 @@ class viot:
 
 			except Exception as ex:
 				print("error")
+				traceback.print_stack()
 				print(ex)
 				print("fs")
 

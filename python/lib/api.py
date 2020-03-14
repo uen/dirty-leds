@@ -81,8 +81,7 @@ def get_template():
 		effectOptionTabs = []
 
 		# Generate non reactive effect buttons
-		for effect in effects["nreactive"]:
-			print(effect["name"], "device")
+		for effect in device["effects"]["nreactive"]:
 			nonReactiveButtons.append({
 				"label": effect["name"],
 				"value": effect["name"],
@@ -93,9 +92,10 @@ def get_template():
 			})
 
 		# Generate reactive effect buttons
-		for effect in effects["reactive"]:
+		for effect in device["effects"]["reactive"]:
 			reactiveButtons.append({
 				"label": effect["name"],
+				"value": effect["name"],
 				"data": {
 					"device": device["name"],
 					"effect": effect["name"]
@@ -103,9 +103,8 @@ def get_template():
 			})
 
 		# Generate effect option tabs
-		for effect in effects["reactive"] + effects["nreactive"]:
+		for effect in device["effects"]["reactive"] + device["effects"]["nreactive"]:
 			effectOptionContent = []
-			print(effect)
 			for option in effect["options"]:
 				sectionContent = []
 
@@ -113,20 +112,43 @@ def get_template():
 				if(option["type"] == "float_slider" or option["type"] == "slider"):
 					sectionContent.append({
 						"type": "slider",
-						"action": f"set-option/{device['name']}/{option['k']}",
-						"state": "BRIGHTNESS",
-						"min": 0,
-						"max": 100,
-						"step": 10
+						"action": "set-option",
+						"state": f"OPTION/{device['name']}/{effect['name']}/{option['k']}",
+						"data": {"device": device['name'], "effect": effect['name'], "option": option['k']},
+						"min": option["config"][0],
+						"max": option["config"][1],
+						"step": option["config"][2]
 					})
+
+
+
 
 				# Dropdowns
 				if(option["type"] == "dropdown"):
-					print("dropdiown not supproted yet")
+					settingOptions = []
+					for settingOption in option["config"]:
+						settingOptions.append({
+                        	"label": settingOption,
+                        	"value": settingOption
+                        })
+
+					sectionContent.append({
+						"type": "select",
+						"action": "set-option",
+						"state": f"OPTION/{device['name']}/{effect['name']}/{option['k']}",
+						"data": {"device": device['name'], "effect": effect['name'], "option": option['k']},
+						"options": settingOptions
+					})
 
 				# Checkboxes
 				if(option["type"] == "checkbox"):
-					print("checkbox not supported yet")
+					sectionContent.append({
+						"type": "checkbox",
+						"action": "set-option",
+						"state": f"OPTION/{device['name']}/{effect['name']}/{option['k']}",
+						"data": {"device": device['name'], "effect": effect['name'], "option": option['k']},
+					})
+
 
 				# Create the section and add the options
 				effectOptionContent.append({
@@ -134,6 +156,11 @@ def get_template():
 					"label": option["name"],
 					"content": sectionContent
 				})
+
+				# Set option in state
+				state[f"OPTION/{device['name']}/{effect['name']}/{option['k']}"] = effect["current_options"][option["k"]]
+
+
 
 			# Add the effect option tab
 			effectOptionTabs.append({
@@ -220,7 +247,7 @@ def get_template():
 				{
 					"type": "tabs",
 					"subtype": "secondary",
-					"tabs": effectOptionTabs
+					"content": effectOptionTabs
 				}
 			]
 		})
@@ -247,14 +274,14 @@ def get_template():
 		"control" : [
 			{
 				"type": "tabs",
-				"tabs": tabs
+				"content": tabs
 			}
 		]
 	}
 
 
 viot = viot_({
-    "apikey": "69a1ee068d4d0286a0c33c8467a1548cff583dad3a4744d2fca98e053d57b866",
+    "apikey": "5e48bbb922e8a25725a873bb815291157120537972938082c08ba6ff8f6d6ab5",
     "defaultState": state
 })
 
@@ -284,16 +311,15 @@ def process(data):
 
 	device_ = data['device']
 	effect_ = data['effect']
-
+	print(device_, effect_)
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
 
-	if(foundDevice is None):
-                                 		return "device not found"
+	print(f"changing effect for {foundDevice}")
 
-	if(_config.settings["sync"]):
-		foundDevice = next(iter(_config.settings["devices"]))
+	if(foundDevice is None):
+		return "device not found"
 
 
 	for effect, details in _boards[foundDevice].visualizer.effects.items():
@@ -310,10 +336,14 @@ def process(data):
 	if _config.settings["sync"]:
 		for device in _config.settings["devices"]:
 			_config.settings["devices"][device]["configuration"]["current_effect"] = foundEffect
+			state[f"CURRENT_EFFECT/{device}"] = foundEffect
 	else:
 		_config.settings["devices"][foundDevice]["configuration"]["current_effect"] = foundEffect
+		state[f"CURRENT_EFFECT/{foundDevice}"] = foundEffect
 
-	state[f"CURRENT_EFFECT/{foundDevice}"] = foundEffect
+	print(foundDevice)
+	print(state)
+
 	viot.update_state(state)
 
 	return True
@@ -321,13 +351,11 @@ def process(data):
 
 @viot.action('set-brightness')
 def process(data):
-	print("brightness")
-	print(data)
+	if(not "value" in data): return
+	data = data["value"]
 	ve = validate_int(numpy.int(data), min_value=0, max_value=100)
 	if(ve): return ve
 
-
-	print("set brightness 2")
 
 
 	state["BRIGHTNESS"] = numpy.float(data)
@@ -347,6 +375,88 @@ def process(data):
 	_config.settings["sync"] = data
 	viot.update_state(state)
 
+	return True
+
+
+
+@viot.action('set-option')
+def process(data):
+	print("set-option acrtion")
+	print(data)
+	if(not "data" in data): return
+	if(not "value" in data): return
+
+	print(data)
+
+	ve = vi(data["data"], schema={
+		"device" : validate_text(),
+		"effect" : validate_text(),
+		"option" : validate_text()
+	})
+	if(ve): return ve
+
+
+
+	print("passed checks")
+
+
+	foundDevice = None
+	foundEffect = None
+	foundOption = None
+
+
+	device_ = data['data']['device']
+	effect_ = data['data']['effect']
+	option_ = data['data']['option']
+	value_ = data['value']
+	useAll_ = _config.settings["sync"]
+
+	for device, details in _config.settings["devices"].items():
+		if(device==device_):
+			foundDevice = device
+
+
+	if(useAll_):
+		foundDevice = next(iter(_config.settings["devices"]))
+
+	if(foundDevice is None):
+		return  "Device not found"
+
+	for effect, details in _boards[foundDevice].visualizer.effects.items():
+		if(effect == effect_):
+			foundEffect = effect
+
+	if(foundEffect is None):
+		return "Effect not found"
+
+	for option in _boards[foundDevice].effectConfig[foundEffect]:
+		if(option==option_):
+			foundOption = option
+
+	if(foundOption is None):
+		return "Effect option not found"
+
+	print("woo", value_)
+
+
+	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], int):
+		value_ = int(value_)
+
+	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], numpy.float64):
+		value_ = numpy.float64(value_)
+
+	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], float):
+		value_ = float(value_)
+
+	if _config.settings["sync"]:
+		for device, details in _config.settings["devices"].items():
+			_boards[device].effectConfig[foundEffect][foundOption] = value_
+			state[f"OPTION/{device}/{foundEffect}/{foundOption}"] = value_
+	else:
+		state[f"OPTION/{foundDevice}/{foundEffect}/{foundOption}"] = value_
+		_boards[foundDevice].effectConfig[foundEffect][foundOption] = value_
+	print("cdone")
+	viot.update_state(state)
 	return True
 
 
@@ -406,72 +516,4 @@ def process(data):
 
 	_config.settings["devices"][device]["configuration"]["MIN_FREQUENCY"] = value_
 
-	return True
-
-@viot.action('set/option')
-def process(data):
-	ve = vi(data, schema={
-		"device" : validate_text(),
-		"effect" : validate_text(),
-		"option" : validate_text(),
-		"value"  : validate_text()})
-	if(ve): return ve
-
-	foundDevice = None
-	foundEffect = None
-	foundOption = None
-
-
-	device_ = data['device']
-	effect_ = data['effect']
-	option_ = data['option']
-	value_ = data['value']
-	useAll_ = _config.settings["sync"]
-
-	for device, details in _config.settings["devices"].items():
-		if(device==device_):
-			foundDevice = device
-
-
-	if(useAll_):
-		foundDevice = next(iter(_config.settings["devices"]))
-
-	if(foundDevice is None):
-		return  "Device not found"
-
-	for effect, details in _boards[foundDevice].visualizer.effects.items():
-		if(effect == effect_):
-			foundEffect = effect
-
-	if(foundEffect is None):
-		return "Effect not found"
-
-	for option in _boards[foundDevice].effectConfig[foundEffect]:
-		if(option==option_):
-			foundOption = option
-
-	if(foundOption is None):
-		return "Effect option not found"
-
-	try:
-		value = json.loads(value_)
-		value_ = value["value"]
-	except Exception as e:
-		return "Invalid value"
-
-
-	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], int):
-		value_ = int(value_)
-
-	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], numpy.float64):
-		value_ = numpy.float64(value_)
-
-	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], float):
-		value_ = float(value_)
-
-	if _config.settings["sync"]:
-		for device, details in _config.settings["devices"].items():
-			_boards[device].effectConfig[foundEffect][foundOption] = value_
-	else:
-		_boards[foundDevice].effectConfig[foundEffect][foundOption] = value_
 	return True
