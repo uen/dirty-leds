@@ -38,7 +38,6 @@ def setState(key, value):
 
 class viotMqtt:
 	def __init__(self, options):
-		print("ziajdiowajido")
 		mqttClient.connect(options["host"], options["port"], 60)
 		mqttClient.loop_forever()
 
@@ -54,7 +53,7 @@ class viot:
 
 	class __viot:
 		def __init__(self, options):
-			print("viot: attempting initial qmtt connection")
+			print("viot: Attempting initial connection...")
 
 			mqttClient.on_connect = self.on_connect
 			mqttClient.on_message = self.on_message
@@ -65,23 +64,11 @@ class viot:
 				print("viot: Called with no defaultState!")
 
 			self.viotState = options["defaultState"]
-
-			if(not "apiKey" in options):
-				print("viot: Called with no apiKey!")
-
 			self.options = options
-
 			self.listeners = {}
-
-			self.emitTopic = f"device/{self.options['apikey']}/emit"
-
-
-
-			self.beginMqtt(options)
+			
 
 		def update_state(self, state):
-			print("new state")
-			print(state)
 			mqttClient.publish(self.emitTopic, json.dumps({
 				"command": "state",
 				"message": state
@@ -95,7 +82,12 @@ class viot:
 			self.listeners["command"].append(callback)
 
 
-		def beginMqtt(self, options):
+		def begin(self, options):
+			if(options):
+				self.options = {**self.options, **options}
+
+			self.emitTopic = f"device/{self.options['apikey']}/emit"
+
 			mqttThread = Thread(target=viotMqtt, args=[self.options])
 			mqttThread.daemon = True
 			mqttThread.start()
@@ -111,10 +103,7 @@ class viot:
 		def on_connect(self, a, b, c, d):
 			print("viot: Connection established")
 			mqttClient.subscribe(f"device/{self.options['apikey']}/receive")
-			print(f"device/{self.options['apikey']}/receive")
-
-			mqttClient.publish(self.emitTopic, json.dumps({"command": "connect"}))
-
+			result = mqttClient.publish(self.emitTopic, json.dumps({"command": "connect"}))
 
 		def on_status(self, payload):
 			if(self.options["debug"]):
@@ -123,7 +112,7 @@ class viot:
 			mqttClient.publish(self.emitTopic, json.dumps({"command": "status", "message": "online"}))
 
 		def get_template():
-			print("get template not repalced")
+			print("viot: get_template() not replaced")
 
 		def set_template(self, templateFunc):
 			self.get_template = templateFunc
@@ -131,9 +120,6 @@ class viot:
 		def on_template(self, payload):
 			if(self.options["debug"]):
 				print("viot: Responding to template request")
-
-
-			print("getting template")
 
 			template = self.get_template()
 			mqttClient.publish(self.emitTopic, json.dumps({
@@ -144,25 +130,18 @@ class viot:
 				}
 			}))
 
-
-
 		def on_action(self, payload):
 			if(self.options["debug"]):
 				print(f"viot: Received command {payload['command']} with value: {payload['value']}")
 
 
 		def on_message(self, client, userdata, message):
-			print("got a message")
-			print(message.topic)
-			print(message.payload)
-
 			commands = {
 				"status" : self.on_status,
 				"template" : self.on_template
 			}
 
 			try:
-				print("trying")
 				messageData = json.loads(message.payload)
 				if(not messageData["command"]):
 					print("viot: Received message with no command parameter")
@@ -179,7 +158,7 @@ class viot:
 					callback(messageData["value"])
 
 			except ValueError as e:
-				print("invalid message")
+				print("viot: Invalid message received")
 				return False
 
 			except Exception as ex:

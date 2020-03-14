@@ -1,0 +1,1 @@
+python C:\Users\Manolis\Documents\GitHub\dirty-leds\python\main.py

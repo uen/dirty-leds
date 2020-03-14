@@ -37,22 +37,12 @@ class LEDController:
 
 
 class ESP8266(LEDController):
-    def __init__(self, auto_detect=False,
-                 mac_addr="aa-bb-cc-dd-ee-ff",
+    def __init__(self,
                  ip='192.168.0.150',
                  port=7778):
         """Initialize object for communicating with as ESP8266
         Parameters
         ----------
-        auto_detect: bool, optional
-            Automatically search for and find devices on windows hotspot
-            with given mac addresses. Windows hotspot resets the IP
-            addresses of any devices on reset, meaning the IP of the 
-            ESP8266 changes every time you turn on the hotspot. This
-            will find the IP address of the devices for you.
-        mac_addr: str, optional
-            The MAC address of the ESP8266 on the network. Only used if
-            auto-detect is used
         ip: str, optional
             The IP address of the ESP8266 on the network. This must exactly
             match the IP address of your ESP8266 device, unless using
@@ -62,12 +52,9 @@ class ESP8266(LEDController):
             must exactly match the port number in the ESP8266's firmware.
         """
         import socket
-        self._mac_addr = mac_addr
         self._ip = ip
         self._port = port
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        if auto_detect:
-            self.detect()
 
     def detect(self):
         from subprocess import check_output

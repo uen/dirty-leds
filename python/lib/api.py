@@ -9,66 +9,13 @@ from .vendor.validation import (
 )
 from .viot import viot as viot_
 
-def setConfig(config):
-	global _config
-	_config = config
-
-
-def setBoards(boards):
-	global _boards
-	_boards = boards
-
 # Initial state is set when get_template is called
 state = {}
 
-def get_devices_effects():
-	devices = []
-	# Add effects and effect options to each devices
-	for device, details in _config.settings["devices"].items():
-		effects = {"reactive":[], "nreactive":[]}
+viot = viot_({
+    "defaultState": state
+})
 
-		for effect, details in _boards[device].visualizer.effects.items():
-			currentOptions = None
-			options = []
-			if effect in _boards[device].visualizer.dynamic_effects_config:
-				currentOptions = _boards[device].effectConfig[effect]
-
-				effects_config = _boards[device].visualizer.dynamic_effects_config[effect]
-
-				for effect_config_ in effects_config:
-					option = {
-						"k": effect_config_[0],
-						"name": effect_config_[1],
-						"type": effect_config_[2]
-					}
-					if len(effect_config_) > 3:
-						option["config"] = effect_config_[3]
-					options.append(option)
-			else:
-				currentOptions = {}
-
-
-			effect_ = {
-				"name": effect,
-				"current_options":currentOptions,
-				"options": options
-			}
-
-			if(details.nonReactive):
-				effects["nreactive"].append(effect_)
-			else:
-				effects["reactive"].append(effect_)
-
-
-		devices.append({
-			"name":device,
-			"minFrequency":		_boards[device].config["MIN_FREQUENCY"],
-			"maxFrequency":		_boards[device].config["MAX_FREQUENCY"],
-			"currentEffect":	_boards[device].config["current_effect"],
-			"effects":			effects
-		})
-
-	return devices, effects
 
 # Generate control panel template for viot
 def get_template():
@@ -280,14 +227,68 @@ def get_template():
 	}
 
 
-viot = viot_({
-    "apikey": "5e48bbb922e8a25725a873bb815291157120537972938082c08ba6ff8f6d6ab5",
-    "defaultState": state
-})
-
 viot.set_template(get_template)
 
+def setConfig(config):
+	global _config
+	_config = config
 
+	viot.begin({"apikey": config.settings["apikey"]})
+
+
+def setBoards(boards):
+	global _boards
+	_boards = boards
+
+
+def get_devices_effects():
+	devices = []
+	# Add effects and effect options to each devices
+	for device, details in _config.settings["devices"].items():
+		effects = {"reactive":[], "nreactive":[]}
+
+		for effect, details in _boards[device].visualizer.effects.items():
+			currentOptions = None
+			options = []
+			if effect in _boards[device].visualizer.dynamic_effects_config:
+				currentOptions = _boards[device].effectConfig[effect]
+
+				effects_config = _boards[device].visualizer.dynamic_effects_config[effect]
+
+				for effect_config_ in effects_config:
+					option = {
+						"k": effect_config_[0],
+						"name": effect_config_[1],
+						"type": effect_config_[2]
+					}
+					if len(effect_config_) > 3:
+						option["config"] = effect_config_[3]
+					options.append(option)
+			else:
+				currentOptions = {}
+
+
+			effect_ = {
+				"name": effect,
+				"current_options":currentOptions,
+				"options": options
+			}
+
+			if(details.nonReactive):
+				effects["nreactive"].append(effect_)
+			else:
+				effects["reactive"].append(effect_)
+
+
+		devices.append({
+			"name":device,
+			"minFrequency":		_boards[device].config["MIN_FREQUENCY"],
+			"maxFrequency":		_boards[device].config["MAX_FREQUENCY"],
+			"currentEffect":	_boards[device].config["current_effect"],
+			"effects":			effects
+		})
+
+	return devices, effects
 
 def validateInput(value, schema=None):
 	try:
@@ -311,12 +312,10 @@ def process(data):
 
 	device_ = data['device']
 	effect_ = data['effect']
-	print(device_, effect_)
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
 
-	print(f"changing effect for {foundDevice}")
 
 	if(foundDevice is None):
 		return "device not found"
@@ -340,9 +339,6 @@ def process(data):
 	else:
 		_config.settings["devices"][foundDevice]["configuration"]["current_effect"] = foundEffect
 		state[f"CURRENT_EFFECT/{foundDevice}"] = foundEffect
-
-	print(foundDevice)
-	print(state)
 
 	viot.update_state(state)
 
@@ -381,12 +377,8 @@ def process(data):
 
 @viot.action('set-option')
 def process(data):
-	print("set-option acrtion")
-	print(data)
 	if(not "data" in data): return
 	if(not "value" in data): return
-
-	print(data)
 
 	ve = vi(data["data"], schema={
 		"device" : validate_text(),
@@ -394,11 +386,6 @@ def process(data):
 		"option" : validate_text()
 	})
 	if(ve): return ve
-
-
-
-	print("passed checks")
-
 
 	foundDevice = None
 	foundEffect = None
@@ -436,9 +423,6 @@ def process(data):
 	if(foundOption is None):
 		return "Effect option not found"
 
-	print("woo", value_)
-
-
 	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], int):
 		value_ = int(value_)
 
@@ -455,7 +439,7 @@ def process(data):
 	else:
 		state[f"OPTION/{foundDevice}/{foundEffect}/{foundOption}"] = value_
 		_boards[foundDevice].effectConfig[foundEffect][foundOption] = value_
-	print("cdone")
+
 	viot.update_state(state)
 	return True
 

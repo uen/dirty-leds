@@ -90,34 +90,33 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
 settings = {                                                      # All settings are stored in this dict
     "sync" : True,
     "brightness" : 0.8,
+    "apikey": "",                                                 # Put your viot Device API key here (viot.co.uk)
 
     "configuration":{  # Program configuration
-                     'USE_GUI': False,                             # Whether to display the GUI
-                     'displayFPS': False,                        # Whether to print the FPS when running (can reduce performance)
+                     'USE_GUI': False,                            # Whether to display the GUI
+                     'displayFPS': False,                         # Whether to print the FPS when running (can reduce performance)
                      'MIC_RATE': 48000,                           # Sampling frequency of the microphone in Hz
                      'FPS': 60,                                   # Desired refresh rate of the visualization (frames per second)
-                     'maxBrightness': 255,                       # Max brightness sent to LED strip
+                     'maxBrightness': 255,                        # Max brightness sent to LED strip
                      'N_ROLLING_HISTORY': 1,                      # Number of past audio frames to include in the rolling window
-                     'MIN_VOLUME_THRESHOLD': 0.001,                # No music visualization displayed if recorded audio volume below threshold
-                  
-                     },
+                     'MIN_VOLUME_THRESHOLD': 0.001,               # No music visualization displayed if recorded audio volume below threshold
+                
+                    },
 
     # All devices and their respective settings. Indexed by name, call each one what you want.
     "devices":{
      "Desk":{
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
-                                       "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
-                                       "MAC_ADDR": "YOUR MAC ADDRESS HERE",             # MAC address of the ESP8266. Only used if AUTO_DETECT is True
                                        "UDP_IP": "192.168.0.150",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
-                                       "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
+                                       "UDP_PORT": 7778,                            # Port number used for socket communication between Python and ESP8266
                                        "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
                                        "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Fire"             # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Mood"             # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
@@ -128,10 +127,8 @@ settings = {                                                      # All settings
         "Bed":{
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
-                                       "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
-                                       "MAC_ADDR": "YOUR MAC ADDRESS HERE",             # MAC address of the ESP8266. Only used if AUTO_DETECT is True
                                        "UDP_IP": "192.168.0.151",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
-                                       "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
+                                       "UDP_PORT": 7778,                            # Port number used for socket communication between Python and ESP8266
                                        "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
                                        "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
@@ -148,17 +145,15 @@ settings = {                                                      # All settings
         "TV":{
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
-                                       "AUTO_DETECT": False,                         # Set this true if you're using windows hotspot to connect (see below for more info)
-                                       "MAC_ADDR": "YOUR MAC ADDRESS HERE",             # MAC address of the ESP8266. Only used if AUTO_DETECT is True
                                        "UDP_IP": "192.168.0.152",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
-                                       "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
+                                       "UDP_PORT": 7778,                            # Port number used for socket communication between Python and ESP8266
                                        "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
                                        "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
                                        "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
                                        "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
                                        "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Fire"                   # Currently selected effect for this board, used as default when program launches
+                                       "current_effect": "Mood"                   # Currently selected effect for this board, used as default when program launches
                                       },
     
                       # Configurable options for this board's effects go in this dictionary.
@@ -244,102 +239,6 @@ device_req_config = {"Stripless"   : None, # duh
                                                       "localhost:7890"]}
                      }
 
-"""
-    ~~ NOTES ~~
-
-[use_defaults]
-
-For any dicts in this file (config.py), you can add them into the use_defaults
-dict to force the program to use these values over any stored in settings.ini
-that you would have set using the GUI. At runtime, settings.ini is used to update
-the above dicts with custom set values. 
-
-If you're running a headless RPi, you may want to edit settings in this file, then
-specify to use the dict you wrote, rather than have the program overwrite from 
-settings.ini at runtime. You could also run the program with the gui, set the 
-settings that you want, then disable the gui and the custom settings will still
-be loaded. Basically it works as you would expect it to.
-
-[DEVICE TYPE]
-
-Device used to control LED strip.
-
-'ESP8266' means that you are using an ESP8266 module to control the LED strip
-and commands will be sent to the ESP8266 over WiFi. You can have as many of 
-these as your computer is able to handle.
-
-'RaspberryPi' means that you are using a Raspberry Pi as a standalone unit to process
-audio input and control the LED strip directly.
-
-'BlinkStick' means that a BlinkstickPro is connected to this PC which will be used
-to control the leds connected to it.
-
-'Fadecandy' means that a Fadecandy server is running on your computer and is connected
-via usb to a Fadecandy board connected to LEDs
-
-'DotStar' creates an APA102-based output device. LMK if you have any success 
-getting this to work becuase i have no clue if it will.
-
-'Stripless' means that the program will run without sending data to a strip.
-Useful for development etc, but doesn't look half as good ;)
-
-[REQUIRED CONFIGURATION KEYS]
-
-===== 'ESP8266'
- "AUTO_DETECT"            # Set this true if you're using windows hotspot to connect (see below for more info)
- "MAC_ADDR"               # MAC address of the ESP8266. Only used if AUTO_DETECT is True
- "UDP_IP"                 # IP address of the ESP8266. Must match IP in ws2812_controller.ino
- "UDP_PORT"               # Port number used for socket communication between Python and ESP8266
-===== 'RaspberryPi'
- "LED_PIN"                # GPIO pin connected to the LED strip pixels (must support PWM)
- "LED_FREQ_HZ"            # LED signal frequency in Hz (usually 800kHz)
- "LED_DMA"                # DMA channel used for generating PWM signal (try 5)
- "BRIGHTNESS"             # Brightness of LED strip between 0 and 255
- "LED_INVERT"             # Set True if using an inverting logic level converter
-===== 'BlinkStick'
- No required configuration keys
-===== 'Fadecandy'
- "SERVER"                 # Address of Fadecandy server. (usually 'localhost:7890')
-===== 'DotStar'
- No required configuration keys
-===== 'Stripless'
- No required configuration keys (heh)
-
-[AUTO_DETECT]
-
-Set to true if the ip address of the device changes. This is the case if it's connecting
-through windows hotspot, for instance. If so, give the mac address of the device. This 
-allows windows to look for the device's IP using "arp -a" and finding the matching
-mac address. I haven't tested this on Linux or macOS.
-
-[FPS]
-
-FPS indicates the desired refresh rate, or frames-per-second, of the audio
-visualization. The actual refresh rate may be lower if the computer cannot keep
-up with desired FPS value.
-
-Higher framerates improve "responsiveness" and reduce the latency of the
-visualization but are more computationally expensive.
-
-Low framerates are less computationally expensive, but the visualization may
-appear "sluggish" or out of sync with the audio being played if it is too low.
-
-The FPS should not exceed the maximum refresh rate of the LED strip, which
-depends on how long the LED strip is.
-
-[N_FFT_BINS]
-
-Fast Fourier transforms are used to transform time-domain audio data to the
-frequency domain. The frequencies present in the audio signal are assigned
-to their respective frequency bins. This value indicates the number of
-frequency bins to use.
-
-A small number of bins reduces the frequency resolution of the visualization
-but improves amplitude resolution. The opposite is true when using a large
-number of bins. More bins is not always better!
-
-There is no point using more bins than there are pixels on the LED strip.
-"""
 
 for board in settings["devices"]:
     if settings["devices"][board]["configuration"]["TYPE"] == 'ESP8266':

@@ -32,8 +32,6 @@ class Board():
         self.signalProcessor = DSP(self)
     
         self.esp = devices.ESP8266(
-            auto_detect   = self.config["AUTO_DETECT"],
-            mac_addr      = self.config["MAC_ADDR"],
             ip            = self.config["UDP_IP"],
             port          = self.config["UDP_PORT"]
         )
