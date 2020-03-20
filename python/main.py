@@ -94,11 +94,11 @@ def microphone_update(audio_samples):
         outputs[board][1] = outputs[board][1] * config.settings["brightness"]
         outputs[board][2] = outputs[board][2] * config.settings["brightness"]
 
-
-        if(config.settings["sync"]):
-            boards[board].esp.show(outputs[b])
-        else:
-            boards[board].esp.show(outputs[board])
+        if not (boards[board].config["current_effect"] == "Off"):
+            if(config.settings["sync"]):
+                boards[board].esp.show(outputs[b])
+            else:
+                boards[board].esp.show(outputs[board])
 
 
     # FPS update

@@ -90,7 +90,7 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
 settings = {                                                      # All settings are stored in this dict
     "sync" : True,
     "brightness" : 0.8,
-    "apikey": "",                                                 # Put your viot Device API key here (viot.co.uk)
+    "apikey": "5e48bbb922e8a25725a873bb815291157120537972938082c08ba6ff8f6d6ab5",                                                 # Put your viot Device API key here (viot.co.uk)
 
     "configuration":{  # Program configuration
                      'USE_GUI': False,                            # Whether to display the GUI
@@ -109,7 +109,7 @@ settings = {                                                      # All settings
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
                                        "UDP_IP": "192.168.0.150",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
-                                       "UDP_PORT": 7778,                            # Port number used for socket communication between Python and ESP8266
+                                       "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
                                        "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
                                        "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
@@ -128,7 +128,7 @@ settings = {                                                      # All settings
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
                                        "UDP_IP": "192.168.0.151",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
-                                       "UDP_PORT": 7778,                            # Port number used for socket communication between Python and ESP8266
+                                       "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
                                        "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
                                        "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
@@ -146,7 +146,7 @@ settings = {                                                      # All settings
                       "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
                                         # Required configuration for device. See below for all required keys per device
                                        "UDP_IP": "192.168.0.152",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
-                                       "UDP_PORT": 7778,                            # Port number used for socket communication between Python and ESP8266
+                                       "UDP_PORT": 7777,                            # Port number used for socket communication between Python and ESP8266
                                        "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
                                          # Other configuration 
                                        "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
