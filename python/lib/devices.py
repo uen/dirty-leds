@@ -88,10 +88,11 @@ class ESP8266(LEDController):
             b (0 to 255): Blue value of LED
         """
 
-        raveled = pixels.T.clip(0, config.settings["configuration"]["maxBrightness"]).astype(np.uint8).ravel()
-        np.insert(raveled, 0, [2, 1])
+        raveled = (pixels.T.clip(0, config.settings["configuration"]["maxBrightness"]).ravel())
+        header = np.insert(raveled, 0, [2, 1])
 
-        self._sock.sendto(raveled.tostring(), (self._ip, self._port))
+
+        self._sock.sendto(header.astype(np.uint8).tostring(), (self._ip, self._port))
 
 
 
