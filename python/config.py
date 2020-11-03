@@ -3,6 +3,12 @@ from __future__ import print_function
 from __future__ import division
 import copy
 import os
+import json
+
+
+
+
+
 
 use_defaults = {"configuration": True,                           # See notes below for detailed explanation
                 "GUI_opts": False,
@@ -86,93 +92,42 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                       "RunnerReactive": {"color_mode":"Fruity", "times":0.90, "add":0.8, "divide":18,"blur":1}
                                      }
 
+devices = {}
+with open("config.json") as configFile:
+  data = json.load(configFile)
+  for device in data["devices"]:
+    devices[device["name"]] = {
+        "configuration": {
+          "TYPE": device["type"],
+          "UDP_IP": device["ip"],
+          "UDP_PORT": device["port"],
+          "maxBrightness": 255, 
+          "N_PIXELS": device["leds"],
+          "N_FFT_BINS": 24,
+          "MIN_FREQUENCY": 20,
+          "MAX_FREQUENCY": 18000,
+          "current_effect": "Calibration"
+        },
+        "effect_opts": copy.deepcopy(effectOptions)  
+    }
+    print("Loaded device: ", device["name"])
+
 
 settings = {                                                      # All settings are stored in this dict
     "sync" : True,
     "brightness" : 0.8,
     "apikey": "",                                                 # Put your viot Device API key here (viot.co.uk)
 
-    "configuration":{  # Program configuration
-                     'USE_GUI': False,                            # Whether to display the GUI
-                     'displayFPS': False,                         # Whether to print the FPS when running (can reduce performance)
-                     'MIC_RATE': 48000,                           # Sampling frequency of the microphone in Hz
-                     'FPS': 60,                                   # Desired refresh rate of the visualization (frames per second)
-                     'maxBrightness': 255,                        # Max brightness sent to LED strip
-                     'N_ROLLING_HISTORY': 1,                      # Number of past audio frames to include in the rolling window
-                     'MIN_VOLUME_THRESHOLD': 0.001,               # No music visualization displayed if recorded audio volume below threshold
-                
-                    },
+    "configuration":{
+      'displayFPS': False,
+      'MIC_RATE': 48000, 
+      'FPS': 60,                                   # Desired refresh rate of the visualization (frames per second)
+      'maxBrightness': 255,                        # Max brightness sent to LED strip
+      'N_ROLLING_HISTORY': 1,                      # Number of past audio frames to include in the rolling window
+      'MIN_VOLUME_THRESHOLD': 0.001,               # No music visualization displayed if recorded audio volume below threshold
+    },
 
-    # All devices and their respective settings. Indexed by name, call each one what you want.
-    "devices":{
-     "Desk":{
-                      "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
-                                        # Required configuration for device. See below for all required keys per device
-                                       "UDP_IP": "192.168.0.150",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
-                                       "UDP_PORT": 7778,                            # Port number used for socket communication between Python and ESP8266
-                                       "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
-                                         # Other configuration 
-                                       "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
-                                       "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
-                                       "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
-                                       "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Mood"             # Currently selected effect for this board, used as default when program launches
-                                      },
-    
-                      # Configurable options for this board's effects go in this dictionary.
-                      # Usage: config.settings["devices"][name]["effect_opts"][effect][option]
-                      "effect_opts": copy.deepcopy(effectOptions)
-      },
-                              
-        "Bed":{
-                      "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
-                                        # Required configuration for device. See below for all required keys per device
-                                       "UDP_IP": "192.168.0.151",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
-                                       "UDP_PORT": 7778,                            # Port number used for socket communication between Python and ESP8266
-                                       "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
-                                         # Other configuration 
-                                       "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
-                                       "N_FFT_BINS": 24,                                # Number of frequency bins to use when transforming audio to frequency domain
-                                       "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
-                                       "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Fire"                   # Currently selected effect for this board, used as default when program launches
-                                      },
-    
-                      # Configurable options for this board's effects go in this dictionary.
-                      # Usage: config.settings["devices"][name]["effect_opts"][effect][option]
-                     "effect_opts": copy.deepcopy(effectOptions)
-                                  },
-        "TV":{
-                      "configuration":{"TYPE": "ESP8266",                           # Device type (see below for all supported boards)
-                                        # Required configuration for device. See below for all required keys per device
-                                       "UDP_IP": "192.168.0.152",                   # IP address of the ESP8266. Must match IP in ws2812_controller.ino
-                                       "UDP_PORT": 7778,                            # Port number used for socket communication between Python and ESP8266
-                                       "maxBrightness": 255,                       # Max brightness of output (0-255) (my strip sometimes bugs out with high brightness)
-                                         # Other configuration 
-                                       "N_PIXELS": 150,                             # Number of pixels in the LED strip (must match ESP8266 firmware)
-                                       "N_FFT_BINS": 24,                            # Number of frequency bins to use when transforming audio to frequency domain
-                                       "MIN_FREQUENCY": 20,                         # Frequencies below this value will be removed during audio processing
-                                       "MAX_FREQUENCY": 18000,                      # Frequencies above this value will be removed during audio processing
-                                       "current_effect": "Mood"                   # Currently selected effect for this board, used as default when program launches
-                                      },
-    
-                      # Configurable options for this board's effects go in this dictionary.
-                      # Usage: config.settings["devices"][name]["effect_opts"][effect][option]
-                      "effect_opts": copy.deepcopy(effectOptions)
-                                  },
-
-
-
-
-
-              },
-
-               
-
-
-
-
-    # Collection of different colours in RGB format
+    "devices":devices,
     "colors":{"Red":(255,0,0),
               "Orange":(255,40,0),
               "Yellow":(255,255,0),
@@ -192,7 +147,8 @@ settings = {                                                      # All settings
                  "Sunny"     : ["Yellow", "Light blue", "Orange", "Blue"],
                  "Fruity"    : ["Orange", "Blue"],
                  "Peach"     : ["Orange", "Pink"],
-                 "Rust"      : ["Orange", "Red"]
+                 "Rust"      : ["Orange", "Red"],
+                 "All": ["Red", "Orange", "Yellow", "Green", "Light blue", "Blue", "Purple", "Pink", "Red", "Pink", "Purple", "Blue", "Green", "Light blue", "Blue", "Green", "Red", "Orange"]
                  }
 
 }

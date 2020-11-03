@@ -25,7 +25,6 @@ class Mood(Effect):
             axis=1
         )
 
-
         
         if board.effectConfig["Mood"]["mirror"]:
             output = np.concatenate((output[:, ::-2], output[:, ::2]), axis=1)
