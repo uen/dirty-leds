@@ -33,7 +33,8 @@ class Board():
     
         self.esp = devices.ESP8266(
             ip            = self.config["UDP_IP"],
-            port          = self.config["UDP_PORT"]
+            port          = self.config["UDP_PORT"],
+            leds          = self.config["N_PIXELS"]
         )
 
 
@@ -69,10 +70,15 @@ laserSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
 
+
+
 def microphone_update(audio_samples):
     global y_roll, prev_rms, prev_exp, prev_fps_update
 
-    b = next(iter(boards))
+    syncBoard = next(iter(boards))
+    for board in boards:
+        if(boards[syncBoard].config["N_PIXELS"] < boards[board].config["N_PIXELS"]):
+            syncBoard = board
     
     # Get processed audio data for each device
     audio_datas = {}
@@ -81,8 +87,7 @@ def microphone_update(audio_samples):
         
     outputs = {}
 
-    for board in boards:
-            # Get visualization output for each board
+    def renderBoard(board):
         audio_input = audio_datas[board]["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
         outputs[board] = boards[board].visualizer.get_vis(audio_datas[board]["mel"], audio_input)
 
@@ -94,12 +99,14 @@ def microphone_update(audio_samples):
         outputs[board][1] = outputs[board][1] * config.settings["brightness"]
         outputs[board][2] = outputs[board][2] * config.settings["brightness"]
 
-
-        if(config.settings["sync"]):
-            boards[board].esp.show(outputs[b])
-        else:
+    if(config.settings["sync"]):
+        renderBoard(syncBoard)
+        for board in boards:
+            boards[board].esp.show(outputs[syncBoard])
+    else:
+        for board in boards:
+            renderBoard(board)
             boards[board].esp.show(outputs[board])
-
 
     # FPS update
     fps = frames_per_second()

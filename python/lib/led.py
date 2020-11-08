@@ -6,22 +6,6 @@ import platform
 import numpy as np
 import config as config
 
-def detect_esp8266():
-    """ Uses "arp -a" to find esp8266 on windows hotspot"""
-    # Find the audio strip automagically
-    ip_addr = False
-    while not ip_addr:
-        arp_out = check_output(['arp', '-a']).splitlines()
-        for i in arp_out:
-            if config.settings["configuration"]["MAC_ADDR"] in str(i):
-                ip_addr = i.split()[0].decode("utf-8")
-                break
-        else:
-            print("Device not found at physical address {}, retrying in 1s".format(config.settings["configuration"]["MAC_ADDR"]))
-            sleep(1)
-    print("Found device {}, with IP address {}".format(config.settings["configuration"]["MAC_ADDR"], ip_addr))
-    config.settings["configuration"]["UDP_IP"] = ip_addr
-
 # ESP8266 uses WiFi communication
 if config.settings["configuration"]["DEVICE"] == 'esp8266':
     import socket
@@ -36,20 +20,6 @@ elif config.settings["configuration"]["DEVICE"] == 'pi':
                                        config.settings["configuration"]["LED_FREQ_HZ"], config.settings["configuration"]["LED_DMA"],
                                        config.settings["configuration"]["LED_INVERT"], config.settings["configuration"]["BRIGHTNESS"])
     strip.begin()
-elif config.settings["configuration"]["DEVICE"] == 'blinkstick':
-    from blinkstick import blinkstick
-    import signal
-    import sys
-    #Will turn all leds off when invoked.
-    def signal_handler(signal, frame):
-        all_off = [0]*(config.settings["configuration"]["N_PIXELS"]*3)
-        stick.set_led_data(0, all_off)
-        sys.exit(0)
-
-    stick = blinkstick.find_first()
-    # Create a listener that turns the leds off when the program terminates
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
 
 _gamma = np.load(config.settings["configuration"]["GAMMA_TABLE_PATH"])
 """Gamma lookup table used for nonlinear brightness correction"""

@@ -39,6 +39,7 @@ class LEDController:
 class ESP8266(LEDController):
     def __init__(self,
                  ip='192.168.0.150',
+                 leds=100,
                  port=7778):
         """Initialize object for communicating with as ESP8266
         Parameters
@@ -54,6 +55,7 @@ class ESP8266(LEDController):
         import socket
         self._ip = ip
         self._port = port
+        self._leds = leds
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def detect(self):
@@ -88,7 +90,7 @@ class ESP8266(LEDController):
             b (0 to 255): Blue value of LED
         """
 
-        message = pixels.T.clip(0, config.settings["configuration"]["maxBrightness"]).astype(np.uint8).ravel().tostring()
+        message = pixels.T.clip(0, config.settings["configuration"]["maxBrightness"])[0:self._leds].astype(np.uint8).ravel().tostring()
 
         self._sock.sendto(message, (self._ip, self._port))
 
