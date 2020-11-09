@@ -5,11 +5,6 @@ import copy
 import os
 import json
 
-
-
-
-
-
 use_defaults = {"configuration": True,                           # See notes below for detailed explanation
                 "GUI_opts": False,
                 "devices": True,
