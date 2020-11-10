@@ -1,5 +1,8 @@
 import json
 import numpy
+import os
+import re
+import glob
 from .vendor.validation import (
 	validate_int,
 	validate_float,
@@ -16,6 +19,28 @@ viot = viot_({
     "defaultState": state
 })
 
+# Reload state
+def reload_state():
+	devices, effects = get_devices_effects()
+
+	tabs = []
+	for device in devices:
+		for effect in device["effects"]["reactive"] + device["effects"]["nreactive"]:
+			effectOptionContent = []
+			for option in effect["options"]:
+				state[f"OPTION/{device['name']}/{effect['name']}/{option['k']}"] = effect["current_options"][option["k"]]
+
+
+		# Update state with the current effect
+		state[f"CURRENT_EFFECT/{device['name']}"] = device["currentEffect"]
+
+	# Set brightness and sync in state
+	state[f"BRIGHTNESS"] = _config.settings["brightness"] * 100
+	state[f"SYNC"] = _config.settings["sync"]
+	state[f"CURRENT_PROFILE"] = _config.settings["currentProfile"]
+	viot.update_state(state)
+	
+
 
 # Generate control panel template for viot
 def get_template():
@@ -23,10 +48,29 @@ def get_template():
 
 	tabs = []
 	for device in devices:
+		profileButtons = []
 		nonReactiveButtons = []
 		reactiveButtons = []
 		effectOptionTabs = []
 
+		# Generate profile buttons
+		profiles = get_profiles()
+		for profile, profileData in profiles.items():
+			profileButtons.append({
+				"label": profileData["name"],
+				"value": profile
+			})
+		
+			
+		profileButtons.append({
+			"label": "Save profile",
+			"data": {
+				"name": "my-profile"
+			}
+		})
+		
+		
+		
 		# Generate non reactive effect buttons
 		for effect in device["effects"]["nreactive"]:
 			nonReactiveButtons.append({
@@ -123,12 +167,26 @@ def get_template():
 			"content" : [
 				{
 					"type": "section",
+					"label": "Profiles",
+					"content": [
+						{
+							"type": "button-toggle-bar",
+							"color": "warning",
+							"rounded": True,
+							"action": "set-profile",
+							"state": f"CURRENT_PROFILE",
+							"buttons": profileButtons
+						}
+					]
+				},
+				{
+					"type": "section",
 					"label": "Non-reactive effects",
 					"content": [
 						{
 							"type": "button-toggle-bar",
-							"rounded": True,
 							"color": "info",
+							"rounded": True,
 							"action": "set-effect",
 							"state": f"CURRENT_EFFECT/{device['name']}",
 							"buttons": nonReactiveButtons
@@ -141,8 +199,8 @@ def get_template():
 					"content": [
 						{
 							"type": "button-toggle-bar",
-							"rounded": True,
 							"color": "info",
+							"rounded": True,
 							"action": "set-effect",
 							"state": f"CURRENT_EFFECT/{device['name']}",
 							"buttons": reactiveButtons
@@ -214,6 +272,7 @@ def get_template():
 	# Set brightness and sync in state
 	state[f"BRIGHTNESS"] = _config.settings["brightness"] * 100
 	state[f"SYNC"] = _config.settings["sync"]
+	state[f"CURRENT_PROFILE"] = _config.settings["currentProfile"]
 
 	# Return the template
 	return {
@@ -240,6 +299,17 @@ def setBoards(boards):
 	global _boards
 	_boards = boards
 
+def get_profiles():
+	profiles = {}
+	files = glob.glob("profiles/*.json")
+	
+	for profile in files:
+		fileName = os.path.basename(profile)
+		with open(profile, "r") as profileJson:
+			profileData = json.load(profileJson)
+			profiles[re.sub("\.json", "", fileName)] = profileData
+
+	return profiles
 
 def get_devices_effects():
 	devices = []
@@ -324,10 +394,12 @@ def process(data):
 	for effect, details in _boards[foundDevice].visualizer.effects.items():
 		if(effect == effect_):
 			foundEffect = effect
+			break
 
 	for effect in _boards[foundDevice].visualizer.non_reactive_effects:
 		if(effect==effect_):
 			foundEffect = effect
+			break
 
 	if(foundEffect is None):
 		return "effect not found"
@@ -375,19 +447,69 @@ def process(data):
 
 @viot.action("save-profile")
 def process(data):
-	if(not "name" in data): return
+	print(data)
+	print("wooooo")
+	print("data" in data)
+	if(not "data" in data): return
+	print("woo")
+
+	ve = vi(data["data"], schema={
+		"name": validate_text()
+	})
+	if(ve): return ve
+
+	# Save the current settings state (brightness, sync)
+	settings = {
+		"brightness": _config.settings["brightness"],
+		"sync": _config.settings["sync"]
+	}
 
 	# Save the current state of all the devices
 	deviceSettings = {}
 	for device, details in _config.settings["devices"].items():
-		deviceSettings[device] = _boards[device].effectConfig
-	
+		deviceSettings[device] = _boards[device].getProfile()
+
 	# Write the profile to a file
-	f = open("./profiles/"+data["name"].lower()+".json", "w")
-	f.write(json.dumps({"name": data["name"], "profile": deviceSettings}))
+	f = open("./profiles/"+data["data"]["name"].lower()+".json", "w")
+	f.write(json.dumps({"name": data["data"]["name"], "settings": settings, "devices": deviceSettings}))
 	f.close()
 
 	return True
+
+@viot.action("set-profile")
+def process(data):
+	print(data)
+	if(not "value" in data): return
+	profileName = re.sub('[^A-Za-z0-9.-]+', "", data["value"])
+	path = "./profiles/"+profileName+".json"
+
+	if(os.path.isfile(path)):
+		with open(path, "r") as profileJson:
+			profileData = json.load(profileJson)
+			
+			_config.settings["brightness"] = profileData["settings"]["brightness"]
+			_config.settings["sync"] = profileData["settings"]["sync"]
+			_config.settings["currentProfile"] = profileName
+
+
+			for device_, deviceData_ in profileData["devices"].items():
+				foundDevice = None
+				for device, deviceData in _config.settings["devices"].items():
+					if(device==device_):
+						foundDevice = device
+						break
+
+				if(foundDevice is None): break
+				print("FOR DEVICE QWE FOUND" + foundDevice)
+				print("device data is", deviceData_)
+				print("board is", _boards[foundDevice])
+				_boards[foundDevice].setProfile(deviceData_)
+
+			reload_state()
+	else:
+		print("dirty-leds: Tried to load a profile that doesn't exist ("+path+")")
+	
+
 
 @viot.action('set-option')
 def process(data):
@@ -415,6 +537,7 @@ def process(data):
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
+			break
 
 
 	if(useAll_):
@@ -433,6 +556,7 @@ def process(data):
 	for option in _boards[foundDevice].effectConfig[foundEffect]:
 		if(option==option_):
 			foundOption = option
+			break
 
 	if(foundOption is None):
 		return "Effect option not found"
@@ -474,6 +598,7 @@ def process(data):
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
+			break
 
 	if(foundDevice is None):
 		return "Device not found"
@@ -504,6 +629,7 @@ def process(data):
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
+			break
 
 	if(foundDevice is None):
 		return "Device not found"

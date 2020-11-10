@@ -111,7 +111,8 @@ with open("config.json") as configFile:
 settings = {                                                      # All settings are stored in this dict
     "sync" : True,
     "brightness" : 0.8,
-    "apikey": "",                                                 # Put your viot Device API key here (viot.co.uk)
+    "currentProfile": "default",
+    "apikey": "5e48bbb922e8a25725a873bb815291157120537972938082c08ba6ff8f6d6ab5",                                                 # Put your viot Device API key here (viot.co.uk)
 
     "configuration":{
       'displayFPS': False,

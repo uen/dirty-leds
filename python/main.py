@@ -36,6 +36,18 @@ class Board():
             port          = self.config["UDP_PORT"],
             leds          = self.config["N_PIXELS"]
         )
+    def getProfile(self):
+        return {
+            "currentEffect": self.config["current_effect"],
+            "effectConfig": self.effectConfig
+        }
+       
+    def setProfile(self, profile):
+        self.config["current_effect"] = profile["currentEffect"]
+        config.settings["devices"][board]["effect_opts"] = profile["effectConfig"]
+        self.effectConfig = config.settings["devices"][board]["effect_opts"]
+
+        print("PROFILE SET CUR EFFECT", self.config)
 
 
 def frames_per_second():
