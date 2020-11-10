@@ -373,7 +373,21 @@ def process(data):
 
 	return True
 
+@viot.action("save-profile")
+def process(data):
+	if(not "name" in data): return
 
+	# Save the current state of all the devices
+	deviceSettings = {}
+	for device, details in _config.settings["devices"].items():
+		deviceSettings[device] = _boards[device].effectConfig
+	
+	# Write the profile to a file
+	f = open("./profiles/"+data["name"].lower()+".json", "w")
+	f.write(json.dumps({"name": data["name"], "profile": deviceSettings}))
+	f.close()
+
+	return True
 
 @viot.action('set-option')
 def process(data):
