@@ -32,11 +32,48 @@ LED STRIP DATA TO ESP RX
 
 **SERVER SETUP **
 
-Extract the python folder somewhere on your PC.
+* Extract the python folder somewhere on your PC.
+* Open python/config.json and input your ESP8266 details
+```
+{
+    "devices": [
+        {
+            "name": "Name of your lights (such as Bedroom or Window)",
+            "type": "ESP8266",
+            "ip": "IP of your ESP",
+            "port": 7778,
+            "leds": Number of LEDs you have
+        }
+     ]
+}
+```
 
-Open python/config.py. Scroll down to "devices", add your ESP8266 details -- AUTO_DETECT does not work, so you don't need to change that or enter your MAC address.
+* Go to https://viot.co.uk
+* Sign in with GitHub (top right)
+* Click the "Devices" tab (top)
+* Click "Add device" (top right)
+* Enter a name (such as "Lights"), a unique identifier (such as "lights-bedroom-1"), select an image and press "Create"
+* Once your device is created, click "View details" and copy the api key
 
-Run the server
+* Click the "Home" tab (top)
+* Press "New Environment" (top right)
+* Enter environment name & submit. An environment is a place like your house
+* Press the + button under your environment to add a space
+* Enter space name, select an image and submit. A space is a 'space' in your environment, such as your kitchen, bedroom etc.
+* Click on your newly created space
+* Click "Link device" (top right)
+* Link your device
+
+* Open python/config.py and find "apikey" and enter your API key from earlier such as
+```
+    "apikey": "7e48bbb922e8a2oa25a873bb815291157120537972938082c08bgiwxasf6d6ab5",    
+```
+
+run to start the server. You should see the device as online on VIoT
+```
+python3 main.py
+```
+
 
 ** SUPPORT **
 
