@@ -111,8 +111,8 @@ with open("config.json") as configFile:
 settings = {                                                      # All settings are stored in this dict
     "sync" : True,
     "brightness" : 0.8,
-    "currentProfile": "default",
-    "apikey": "5e48bbb922e8a25725a873bb815291157120537972938082c08ba6ff8f6d6ab5",                                                 # Put your viot Device API key here (viot.co.uk)
+    "currentProfile": "",
+    "apikey": "",  # Put your viot Device API key here (viot.co.uk)
 
     "configuration":{
       'displayFPS': False,
@@ -124,27 +124,60 @@ settings = {                                                      # All settings
     },
 
     "devices":devices,
-    "colors":{"Red":(255,0,0),
-              "Orange":(255,40,0),
-              "Yellow":(255,255,0),
-              "Green":(0,255,0),
-              "Blue":(0,0,255),
-              "Light blue":(1,247,161),
-              "Purple":(80,5,252),
-              "Pink":(255,0,178),
-              "White":(255,255,255)},
+    "colors":{
+                "Red":(255,0,0),
+                "Orange":(255,40,0),
+                "Yellow":(255,255,0),
+                "Green":(0,255,0),
+                "Blue":(0,0,255),
+                "Light blue":(1,247,161),
+                "Purple":(80,5,252),
+                "Bright pink":(255,0,178),
+
+
+                "White":(255,255,255),
+
+                "Bright red": (204, 40, 64),
+                "Pink": (255, 126, 157),
+                "Dark pink": (121, 36, 83),
+                "Dark purple": (51, 0, 39),
+
+                "Darker green": (7, 38, 2),
+                "Dark green": (28, 64, 2),
+                "Medium green": (70, 115, 2),
+                "Light green": (114, 166, 3),
+
+                "Romantic red": (191, 21, 24),
+                "Romantic dark red": (115, 13, 14),
+                "Romantic brown": (191, 127, 98),
+                "Romantic orange": (115, 76, 59),
+                "Romantic pink": (191, 115, 115),
+
+                "Rasta red": (242, 65, 80),
+                "Rasta green": (75, 242, 86),
+                "Rasta yellow": (242, 211, 56),
+                "Rasta dark red": (140, 54, 54),
+
+
+},
 
     # Multicolour gradients. Colours must be in list above
-    "gradients":{"Spectral"  : ["Red", "Orange", "Yellow", "Green", "Light blue", "Blue", "Purple", "Pink"],
-                 "Dancefloor": ["Red", "Pink", "Purple", "Blue"],
+    "gradients":{"Spectral"  : ["Red", "Orange", "Yellow", "Green", "Light blue", "Blue", "Purple", "Bright pink"],
+                 "Dancefloor": ["Red", "Bright pink", "Purple", "Blue"],
                  "Sunset"    : ["Red", "Orange", "Yellow"],
                  "Ocean"     : ["Green", "Light blue", "Blue"],
                  "Jungle"    : ["Green", "Red", "Orange"],
                  "Sunny"     : ["Yellow", "Light blue", "Orange", "Blue"],
                  "Fruity"    : ["Orange", "Blue"],
-                 "Peach"     : ["Orange", "Pink"],
+                 "Peach"     : ["Orange", "Bright pink"],
                  "Rust"      : ["Orange", "Red"],
-                 "All": ["Red", "Orange", "Yellow", "Green", "Light blue", "Blue", "Purple", "Pink", "Red", "Pink", "Purple", "Blue", "Green", "Light blue", "Blue", "Green", "Red", "Orange"]
+
+
+                 "Marijuana" : ["Darker green", "Dark green", "Medium green", "Light green"],
+                 "Sexy"  : ["Bright red", "Pink", "Dark pink", "Dark purple"],
+                 "Romantic": ["Romantic red", "Romantic dark red", "Romantic brown", "Romantic orange", "Romantic pink"],
+                 "Rasta": ["Rasta red", "Rasta green", "Rasta yellow", "Rasta dark red"],
+                 
                  }
 
 }
