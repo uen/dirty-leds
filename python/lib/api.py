@@ -1,5 +1,8 @@
 import json
 import numpy
+import os
+import re
+import glob
 from .vendor.validation import (
 	validate_int,
 	validate_float,
@@ -16,17 +19,55 @@ viot = viot_({
     "defaultState": state
 })
 
+# Reload state
+def reload_state():
+	devices, effects = get_devices_effects()
+
+	tabs = []
+	for device in devices:
+		for effect in device["effects"]["reactive"] + device["effects"]["nreactive"]:
+			effectOptionContent = []
+			for option in effect["options"]:
+				state[f"OPTION/{device['name']}/{effect['name']}/{option['k']}"] = effect["current_options"][option["k"]]
+
+
+		# Update state with the current effect
+		state[f"CURRENT_EFFECT/{device['name']}"] = device["currentEffect"]
+
+	# Set brightness and sync in state
+	state[f"BRIGHTNESS"] = _config.settings["brightness"] * 100
+	state[f"SYNC"] = _config.settings["sync"]
+	state[f"CURRENT_PROFILE"] = _config.settings["currentProfile"]
+	state[f"SAVE_PROFILE_VISIBLE"] = state[f"CURRENT_PROFILE"] == ""
+	state[f"DELETE_PROFILE_VISIBLE"] = state[f"CURRENT_PROFILE"] != ""
+
+	viot.update_state(state)
+	
+# Change the state to custom once something has been changed
+def setCustomProfile():
+	state[f"DELETE_PROFILE_VISIBLE"] = False
+	state[f"SAVE_PROFILE_VISIBLE"] = True
+	state[f"CURRENT_PROFILE"] = ""
 
 # Generate control panel template for viot
 def get_template():
 	devices, effects = get_devices_effects()
 
-	tabs = []
+	mainTabs = []
+	deviceTabs = []
+	deviceEffectSections = []
+
 	for device in devices:
 		nonReactiveButtons = []
 		reactiveButtons = []
 		effectOptionTabs = []
 
+		# Generate profile buttons
+
+		get_profile_buttons()
+
+		
+		
 		# Generate non reactive effect buttons
 		for effect in device["effects"]["nreactive"]:
 			nonReactiveButtons.append({
@@ -104,11 +145,6 @@ def get_template():
 					"content": sectionContent
 				})
 
-				# Set option in state
-				state[f"OPTION/{device['name']}/{effect['name']}/{option['k']}"] = effect["current_options"][option["k"]]
-
-
-
 			# Add the effect option tab
 			effectOptionTabs.append({
 				"label": effect["name"],
@@ -116,8 +152,56 @@ def get_template():
 				"content": effectOptionContent
 			})
 
+		# Add tab effect section
+		deviceEffectSections.append({
+			"type": "section",
+			"label": device['name'],
+			"content": [
+			# 	{
+			# 				"type": "button-toggle-bar",
+			# 				"color": "info",
+			# 				"rounded": True,
+			# 				"action": "set-effect",
+			# 				"state": f"CURRENT_EFFECT/{device['name']}",
+			# 				"buttons": nonReactiveButtons
+			# 			}
+			# ]
+			# [
+				{
+					"type": "columns",
+					"content": [
+						{
+							"type": "column",
+							"size": 6,
+							"content": [{
+								"type": "button-toggle-bar",
+								"color": "info",
+								"rounded": True,
+								"action": "set-effect",
+								"state": f"CURRENT_EFFECT/{device['name']}",
+								"buttons": nonReactiveButtons
+							}],
+						},
+						{
+							"type": "column",
+							"size": 6,
+							"content": [{
+								"type": "button-toggle-bar",
+								"color": "info",
+								"rightAlign": True,
+								"rounded": True,
+								"action": "set-effect",
+								"state": f"CURRENT_EFFECT/{device['name']}",
+								"buttons": reactiveButtons
+							}]
+						}
+					]
+				}
+			]
+		})
+
 		# Add a tab per device
-		tabs.append({
+		deviceTabs.append({
 			"label": device["name"],
 			"type" : "tab",
 			"content" : [
@@ -127,8 +211,8 @@ def get_template():
 					"content": [
 						{
 							"type": "button-toggle-bar",
-							"rounded": True,
 							"color": "info",
+							"rounded": True,
 							"action": "set-effect",
 							"state": f"CURRENT_EFFECT/{device['name']}",
 							"buttons": nonReactiveButtons
@@ -141,56 +225,14 @@ def get_template():
 					"content": [
 						{
 							"type": "button-toggle-bar",
-							"rounded": True,
 							"color": "info",
+							"rounded": True,
 							"action": "set-effect",
 							"state": f"CURRENT_EFFECT/{device['name']}",
 							"buttons": reactiveButtons
 						}
 					]
 				},
-				{
-					"type": "section",
-					"label": "Brightness",
-					"content": [
-						{
-							"type": "slider",
-							"action": "set-brightness",
-							"state": "BRIGHTNESS",
-							"min": 0,
-							"max": 100,
-							"step": 10
-						}
-					]
-				},
-				#{
-				#	"type": "section",
-				#	"label": "Minimum Frequency",
-				#	"content": [
-				#		{
-				#			"type": "slider",
-				#			"action": "set-min-frequency",
-				#			"state": f"MIN-FREQUENCY/{device['name']}",
-				#			"min": 0,
-				#			"max": 100,
-				#			"step": 10
-				#		}
-				#	]
-				#},
-				#{
-				#	"type": "section",
-				#	"label": "Maximum Frequency",
-				#	"content": [
-				#		{
-				#			"type": "slider",
-				#			"action": "set-max-frequency",
-				#			"state": f"MAX-FREQUENCY/{device['name']}",
-				#			"min": 0,
-				#			"max": 100,
-				#			"step": 10
-				#		}
-				#	]
-				#}
 				{
 					"type": "tabs",
 					"subtype": "secondary",
@@ -199,11 +241,70 @@ def get_template():
 			]
 		})
 
-		# Update state with the current effect
-		state[f"CURRENT_EFFECT/{device['name']}"] = device["currentEffect"]
+	mainTabs.append({
+		"label": "Overview",
+		"type": "tab",
+		"content" : [
+			{
+				"type": "section",
+				"label": "Profiles",
+				"buttons": [
+					{
+						"label": "Save profile",
+						"action": "open-modal",
+						"value": "save-profile",
+						"visibleState": "SAVE_PROFILE_VISIBLE"
+					},
+					{
+						"label": "Delete profile",
+						"action": "delete-profile",
+						"visibleState": "DELETE_PROFILE_VISIBLE"
+					}
+				],
+				"content": [
+					{
+						"type": "button-toggle-bar",
+						"fromState": "PROFILE_BUTTONS",
+						"color": "warning",
+						"rounded": True,
+						"action": "set-profile",
+						"state": f"CURRENT_PROFILE"
+					}
+				],
+			},
+			{
+				"type": "section",
+				"label": "Brightness",
+				"content": [
+					{
+						"type": "slider",
+						"action": "set-brightness",
+						"state": "BRIGHTNESS",
+						"min": 0,
+						"max": 100,
+						"step": 10
+					}
+				]
+			},
+			*deviceEffectSections
+		]
+	})
 
-	# Add sync toggle button
-	tabs.append({
+	mainTabs.append({
+		"label": "Options",
+		"type": "tab",
+		"content": [
+			{
+				"type": "tabs",
+				"subtype": "secondary",
+				"inTab": True,
+				"content": deviceTabs
+			}
+		]
+	})
+
+		# Add sync toggle button
+	mainTabs.append({
 		"label": "Sync",
 		"type": "tab",
 		"toggleable": True,
@@ -211,9 +312,7 @@ def get_template():
 		"state": "SYNC"
 	})
 
-	# Set brightness and sync in state
-	state[f"BRIGHTNESS"] = _config.settings["brightness"] * 100
-	state[f"SYNC"] = _config.settings["sync"]
+	reload_state()
 
 	# Return the template
 	return {
@@ -221,9 +320,29 @@ def get_template():
 		"control" : [
 			{
 				"type": "tabs",
-				"content": tabs
+				"content": mainTabs
 			}
-		]
+		],
+		"modals" : {
+			"save-profile": {
+				"title": "Save current profile",
+				"submitLabel": "Save",
+				"action": "save-profile",
+				"content": [
+					{
+						"type": "text",
+						"minLength": 1,
+						"maxLength": 20,
+						"label": "Profile name",
+						"description": "The name of your profile",
+						"pattern": ".*[a-zA-Z].*",
+						"placeholder": "Romantic",
+						"name": "name",
+						"title": "Profile name - At least one character"
+					}
+				]
+			}
+		}
 	}
 
 
@@ -240,6 +359,32 @@ def setBoards(boards):
 	global _boards
 	_boards = boards
 
+def get_profiles():
+	profiles = {}
+	files = glob.glob("profiles/*.json")
+	
+	for profile in files:
+		fileName = os.path.basename(profile)
+		with open(profile, "r") as profileJson:
+			profileData = json.load(profileJson)
+			profiles[re.sub("\.json", "", fileName)] = profileData
+
+	return profiles
+
+def get_profile_buttons():
+	profileButtons = []
+
+	profiles = get_profiles()
+	for profile, profileData in profiles.items():
+		profileButtons.append({
+			"label": profileData["name"],
+			"value": profile
+		})
+
+
+	state[f"PROFILE_BUTTONS"] = profileButtons
+	return profileButtons	
+	
 
 def get_devices_effects():
 	devices = []
@@ -299,7 +444,7 @@ def validateInput(value, schema=None):
 vi = validateInput
 
 
-
+# VIoT APIs
 
 @viot.action('set-effect')
 def process(data):
@@ -324,13 +469,17 @@ def process(data):
 	for effect, details in _boards[foundDevice].visualizer.effects.items():
 		if(effect == effect_):
 			foundEffect = effect
+			break
 
 	for effect in _boards[foundDevice].visualizer.non_reactive_effects:
 		if(effect==effect_):
 			foundEffect = effect
+			break
 
 	if(foundEffect is None):
 		return "effect not found"
+
+	setCustomProfile()
 
 	if _config.settings["sync"]:
 		for device in _config.settings["devices"]:
@@ -352,42 +501,112 @@ def process(data):
 	ve = validate_int(numpy.int(data), min_value=0, max_value=100)
 	if(ve): return ve
 
+	setCustomProfile()
 
-
-	state["BRIGHTNESS"] = numpy.float(data)
+	state["BRIGHTNESS"] = numpy.float(data)	
 	brightness = numpy.float64(state["BRIGHTNESS"] / 100.0)
 	_config.settings["brightness"] = brightness
-
+	
 	viot.update_state(state)
 
 	return True
 
 @viot.action('set-sync')
 def process(data):
-	ve = validate_bool(data)
+	if not "value" in data: return
+
+	ve = validate_bool(data["value"])
 	if(ve): return ve
 
-	state["SYNC"] = data
-	_config.settings["sync"] = data
+	setCustomProfile()
+	state["SYNC"] = data["value"]
+	_config.settings["sync"] = data["value"]
 	viot.update_state(state)
 
 	return True
 
 @viot.action("save-profile")
 def process(data):
-	if(not "name" in data): return
+	if(not "data" in data): return
+	ve = vi(data["data"], schema={
+		"name": validate_text()
+	})
+	if(ve): return ve
+
+	data["data"]["name"] = re.sub('[^A-Za-z0-9.-]+', "", data["data"]["name"])
+	if(len(data["data"]["name"]) <= 0): return
+
+	# Save the current settings state (brightness, sync)
+	settings = {
+		"brightness": _config.settings["brightness"],
+		"sync": _config.settings["sync"]
+	}
 
 	# Save the current state of all the devices
 	deviceSettings = {}
 	for device, details in _config.settings["devices"].items():
-		deviceSettings[device] = _boards[device].effectConfig
-	
+		deviceSettings[device] = _boards[device].getProfile()
+
 	# Write the profile to a file
-	f = open("./profiles/"+data["name"].lower()+".json", "w")
-	f.write(json.dumps({"name": data["name"], "profile": deviceSettings}))
+	f = open("./profiles/"+data["data"]["name"].lower()+".json", "w")
+	f.write(json.dumps({"name": data["data"]["name"], "settings": settings, "devices": deviceSettings}))
 	f.close()
 
+	get_profile_buttons()
+
+	set_profile(data["data"]["name"].lower())
 	return True
+
+@viot.action("delete-profile")
+def process(data):
+	if(not "CURRENT_PROFILE" in state): return
+	path = "./profiles/"+state[f"CURRENT_PROFILE"]+".json"
+	if(os.path.isfile(path)):
+		os.remove(path)
+
+		get_profile_buttons()
+		setCustomProfile()
+		viot.update_state(state)
+
+
+def set_profile(profileName):
+	path = "./profiles/"+profileName.lower()+".json"
+
+	if(os.path.isfile(path)):
+		with open(path, "r") as profileJson:
+			profileData = json.load(profileJson)
+			
+			_config.settings["brightness"] = profileData["settings"]["brightness"]
+			_config.settings["sync"] = profileData["settings"]["sync"]
+			_config.settings["currentProfile"] = profileName
+
+
+			state[f"DELETE_PROFILE_VISIBLE"] = True
+			state[f"SAVE_PROFILE_VISIBLE"] = False
+
+
+			for device_, deviceData_ in profileData["devices"].items():
+				foundDevice = None
+				for device, deviceData in _config.settings["devices"].items():
+					if(device==device_):
+						foundDevice = device
+						break
+
+				if(foundDevice is None): break
+				_boards[foundDevice].setProfile(deviceData_)
+
+			reload_state()
+	else:
+		print("dirty-leds: Tried to load a profile that doesn't exist ("+path+")")
+
+
+@viot.action("set-profile")
+def process(data):
+	if(not "value" in data): return
+	profileName = re.sub('[^A-Za-z0-9.-]+', "", data["value"])
+	set_profile(profileName)
+	
+
 
 @viot.action('set-option')
 def process(data):
@@ -415,6 +634,7 @@ def process(data):
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
+			break
 
 
 	if(useAll_):
@@ -433,6 +653,7 @@ def process(data):
 	for option in _boards[foundDevice].effectConfig[foundEffect]:
 		if(option==option_):
 			foundOption = option
+			break
 
 	if(foundOption is None):
 		return "Effect option not found"
@@ -446,6 +667,7 @@ def process(data):
 	if isinstance(_boards[foundDevice].effectConfig[foundEffect][foundOption], float):
 		value_ = float(value_)
 
+	setCustomProfile()
 	if _config.settings["sync"]:
 		for device, details in _config.settings["devices"].items():
 			_boards[device].effectConfig[foundEffect][foundOption] = value_
@@ -474,13 +696,14 @@ def process(data):
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
+			break
 
 	if(foundDevice is None):
 		return "Device not found"
 
 	value_ = int(value_)
 
-
+	setCustomProfile()
 	_config.settings["devices"][device]["configuration"]["MAX_FREQUENCY"] = value_
 	_boards[device].signalProcessor.create_mel_bank()
 
@@ -504,6 +727,7 @@ def process(data):
 	for device, details in _config.settings["devices"].items():
 		if(device==device_):
 			foundDevice = device
+			break
 
 	if(foundDevice is None):
 		return "Device not found"
@@ -512,6 +736,7 @@ def process(data):
 
 	_boards[device].signalProcessor.create_mel_bank()
 
+	setCustomProfile()
 	_config.settings["devices"][device]["configuration"]["MIN_FREQUENCY"] = value_
 
 	return True
