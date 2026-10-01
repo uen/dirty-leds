@@ -94,7 +94,7 @@ with open(os.environ.get("DIRTY_LEDS_CONFIG", "config.json")) as configFile:
           "N_FFT_BINS": 24,
           "MIN_FREQUENCY": 20,
           "MAX_FREQUENCY": 18000,
-          "current_effect": "Calibration"
+          "current_effect": "Scroll"
         },
         "effect_opts": copy.deepcopy(effectOptions),
         # Optional 3D path of the strip, [[x, y, z], ...] in metres, for the room view
