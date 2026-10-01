@@ -30,10 +30,19 @@ POWER SUPPLY GND TO ESP GND
 LED STRIP DATA TO ESP RX
 
 
-**SERVER SETUP **
+**SERVER SETUP**
 
-* Extract the python folder somewhere on your PC.
-* Open python/config.json and input your ESP8266 details
+Needs Python 3, Node 20+ and ffmpeg (for playing tracks). On Linux, PipeWire's `pw-record` lets the lights follow whatever your PC is playing.
+
+```
+cd python
+pip install -r requirements.txt
+cd ../web
+npm install
+npm run build
+```
+
+Open `python/config.json` and add your ESP8266s:
 ```
 {
     "devices": [
@@ -48,35 +57,34 @@ LED STRIP DATA TO ESP RX
 }
 ```
 
-* Go to https://viot.co.uk
-* Sign in with GitHub (top right)
-* Click the "Devices" tab (top)
-* Click "Add device" (top right)
-* Enter a name (such as "Lights"), a unique identifier (such as "lights-bedroom-1"), select an image and press "Create"
-* Once your device is created, click "View details" and copy the api key
-
-* Click the "Home" tab (top)
-* Press "New Environment" (top right)
-* Enter environment name & submit. An environment is a place like your house
-* Press the + button under your environment to add a space
-* Enter space name, select an image and submit. A space is a 'space' in your environment, such as your kitchen, bedroom etc.
-* Click on your newly created space
-* Click "Link device" (top right)
-* Link your device
-
-* Open python/config.py and find "apikey" and enter your API key from earlier such as
+Start it and open http://127.0.0.1:8000
 ```
-    "apikey": "7e48bbb922e8a2oa25a873bb815291157120537972938082c08bgiwxasf6d6ab5",    
+cd python
+python3 main.py --audio system
 ```
 
-run to start the server. You should see the device as online on VIoT
-```
-python3 main.py
-```
+`--audio` picks where the music comes from, and you can switch it in the web interface too:
+* `off`: no audio. Ambient effects still run
+* `mic`: the default microphone
+* `system`: whatever is playing on this PC (PipeWire)
+* `track:<file>`: a file in `python/music/`, looped and played through your speakers. Test tracks are generated in `python/music/test/` on start
+* `pipe:<path>`: raw 16-bit mono PCM at 48kHz from a FIFO, e.g. from librespot or shairport-sync on a headless box
+
+To control it from your phone, add `"server": {"host": "0.0.0.0"}` to `config.json`. Anyone on your network can then change the lights.
 
 
-** SUPPORT **
+**SIMULATOR**
+
+You don't need any LEDs to work on effects. The presets in `python/rooms/` are configs whose strips point at `127.0.0.1`, with a 3D layout of the room:
+```
+cd python
+python3 main.py --config rooms/living-room.json --audio "track:test/01 Four on the floor 120bpm.wav"
+```
+The web interface shows the room in 3D with the strips lit exactly as the app sends them. To lay out your real room, add a `"room"` and a `"path"` per device to your `config.json` (see the presets).
+
+For working on the web interface, run `npm run dev` in `web/` alongside `main.py` and open http://localhost:5173.
+
+
+**SUPPORT**
 
 I'm working on making this better. Add me on Discord (manol#7762) for help
-
-##

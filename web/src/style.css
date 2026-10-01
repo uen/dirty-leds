@@ -1,0 +1,446 @@
+/* A lighting console: graphite desk, amber selection, colour comes from the strips themselves */
+:root {
+  --desk: #1c1d20;
+  --panel: #232428;
+  --raised: #2b2d31;
+  --line: #36383d;
+  --text: #e9e7e2;
+  --text-dim: #8d9097;
+  --amber: #ffb547;
+  --amber-ink: #2a1d05;
+  --danger: #ff7a6b;
+
+  --font: "Archivo", system-ui, sans-serif;
+  --condensed: 75%;
+  --step--1: 0.8125rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.125rem;
+  --step-2: 1.5rem;
+  --radius-control: 6px;
+  --radius-panel: 10px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--desk);
+  color: var(--text);
+  font: 400 var(--step-0) / 1.45 var(--font);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h2 {
+  font-size: var(--step-1);
+  font-weight: 650;
+  font-stretch: var(--condensed);
+}
+
+h3 {
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* Layout */
+
+.console {
+  display: grid;
+  height: 100dvh;
+  gap: 1px;
+  background: var(--line);
+  grid-template-columns: 260px minmax(0, 1fr) 340px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "header header header"
+    "sound stage effects"
+    "sound channels effects";
+}
+
+.header { grid-area: header; }
+.stage { grid-area: stage; }
+.sound { grid-area: sound; }
+.channels { grid-area: channels; }
+.effects { grid-area: effects; }
+
+.panel {
+  background: var(--panel);
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.stage {
+  position: relative;
+  min-height: 0;
+  background: #08090b;
+}
+
+.stage canvas {
+  display: block;
+  touch-action: none;
+}
+
+@media (max-width: 900px) {
+  .console {
+    height: auto;
+    min-height: 100dvh;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 55vh auto auto auto;
+    grid-template-areas: "header" "stage" "channels" "effects" "sound";
+  }
+
+  .panel {
+    overflow: visible;
+  }
+}
+
+/* Header */
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 2rem;
+  padding-block: 0.75rem;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-right: auto;
+}
+
+.room-name {
+  font-size: var(--step-2);
+  font-weight: 700;
+  font-stretch: var(--condensed);
+  letter-spacing: -0.01em;
+}
+
+.status {
+  font-size: var(--step--1);
+  color: var(--text-dim);
+}
+
+.status[data-connected="true"]::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  background: var(--amber);
+  vertical-align: 1px;
+}
+
+.status[data-connected="false"] {
+  color: var(--danger);
+}
+
+.master {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.master input {
+  width: 180px;
+}
+
+.profiles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-save {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.profile-save input {
+  width: 9rem;
+}
+
+.header .error {
+  flex-basis: 100%;
+}
+
+/* Controls */
+
+.control-label {
+  font-size: var(--step--1);
+  font-stretch: var(--condensed);
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.readout {
+  min-width: 3.5ch;
+  font-stretch: var(--condensed);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+select,
+input[type="text"] {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 0.35rem 0.55rem;
+}
+
+button {
+  cursor: pointer;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 0.35rem 0.8rem;
+}
+
+button:hover {
+  border-color: var(--text-dim);
+}
+
+button.quiet {
+  background: none;
+  color: var(--text-dim);
+}
+
+input[type="range"] {
+  accent-color: var(--amber);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--amber);
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.error {
+  color: var(--danger);
+  font-size: var(--step--1);
+}
+
+.hint {
+  color: var(--text-dim);
+  font-size: var(--step--1);
+}
+
+/* Sound: a cue list */
+
+.sound {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.spectrum {
+  width: 100%;
+  height: 56px;
+}
+
+.cues {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.cue {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  padding: 0.4rem 0.6rem;
+}
+
+.cue:hover {
+  background: var(--raised);
+}
+
+.cue[aria-pressed="true"] {
+  border-left-color: var(--amber);
+  background: var(--raised);
+}
+
+.cue-state {
+  color: var(--amber);
+  font-size: var(--step--1);
+  font-stretch: var(--condensed);
+}
+
+/* Channels: one console strip per LED strip */
+
+.channels {
+  display: flex;
+  gap: 1px;
+  overflow-x: auto;
+  background: var(--panel);
+}
+
+.channel + .channel {
+  box-shadow: -1px 0 0 var(--line);
+}
+
+.channel {
+  display: grid;
+  grid-template-columns: 10px 1fr;
+  grid-template-rows: auto auto 1fr;
+  column-gap: 0.7rem;
+  flex: 1 0 150px;
+  max-width: 240px;
+  min-height: 112px;
+  padding: 0.85rem 1rem 0.85rem 0.85rem;
+  text-align: left;
+  background: var(--panel);
+  border: none;
+  border-top: 3px solid transparent;
+  border-radius: 0;
+}
+
+.channel:hover {
+  background: var(--raised);
+}
+
+.channel[aria-pressed="true"] {
+  background: var(--raised);
+  border-top-color: var(--amber);
+}
+
+.swatch {
+  --live: rgb(0 0 0);
+  grid-row: 1 / -1;
+  border-radius: 5px;
+  background: var(--live);
+  box-shadow: 0 0 14px -2px var(--live);
+  border: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.channel-name {
+  font-size: var(--step-1);
+  font-weight: 650;
+  font-stretch: var(--condensed);
+}
+
+.channel-effect {
+  color: var(--text);
+}
+
+.channel-meta {
+  align-self: end;
+  color: var(--text-dim);
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Effects for the selected strip */
+
+.effects {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.effects-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.effect-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.effect {
+  padding: 0.3rem 0.65rem;
+}
+
+.effect[aria-pressed="true"] {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--amber-ink);
+  font-weight: 600;
+}
+
+.option-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.2rem 0.75rem;
+}
+
+.field .control-label {
+  grid-column: 1 / -1;
+}
+
+.field select {
+  grid-column: 1 / -1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

@@ -1,0 +1,4 @@
+numpy
+scipy
+# Only needed for the microphone audio source
+pyaudio
