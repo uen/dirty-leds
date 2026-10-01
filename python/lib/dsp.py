@@ -1,4 +1,4 @@
-"""Audio analysis, and the filters effects keep per strip
+"""Audio analysis shared between strips
 
 The FFT and mel filterbank only depend on the audio and a strip's frequency
 range, so strips with the same range share one AudioAnalyser and the work is
@@ -87,15 +87,9 @@ def analyser_for(n_bins, min_frequency, max_frequency):
 
 
 class DSP():
-    """Per-strip filters that effects carry from frame to frame, plus the strip's analyser"""
+    """A strip's link to the shared analyser for its frequency range"""
     def __init__(self, board):
         self.board = board
-        n_bins = board.config["N_FFT_BINS"]
-        half_strip = board.config["N_PIXELS"] // 2
-        self.gain =        ExpFilter(np.tile(0.01, n_bins), alpha_decay=0.001, alpha_rise=0.99)
-        self.r_filt =      ExpFilter(np.tile(0.01, half_strip), alpha_decay=0.2, alpha_rise=0.99)
-        self.b_filt =      ExpFilter(np.tile(0.01, half_strip), alpha_decay=0.1, alpha_rise=0.5)
-        self.common_mode = ExpFilter(np.tile(0.01, half_strip), alpha_decay=0.99, alpha_rise=0.01)
         self.update_frequency_range()
 
     def update_frequency_range(self):

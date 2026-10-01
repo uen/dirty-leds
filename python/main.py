@@ -99,7 +99,7 @@ def lead_board():
 
 def render(board, audio_data):
     """One board's frame: its effect's output scaled by the master brightness"""
-    audio_input = audio_data["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
+    audio_input = not board.features.silent
     # New array: effects may return their own state, which must not be dimmed in place
     return board.visualizer.get_vis(audio_data["mel"], audio_input) * config.settings["brightness"]
 

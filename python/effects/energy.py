@@ -5,37 +5,22 @@ from effects.effect import Effect
 
 
 class Energy(Effect):
+    """Red, green and blue bars whose lengths follow the bass, mids and treble"""
     def __init__(self, visualizer):
         self.effectName = "Energy"
         self.output = np.zeros((3, visualizer.board.config["N_PIXELS"]))
 
     def visualize(self, board, y):
-
-        y = np.copy(y)
-        board.signalProcessor.gain.update(y)
-        y /= board.signalProcessor.gain.value
-        scale = board.effectConfig["Energy"]["scale"]
-        # Scale by the width of the LED strip
-        y *= float((board.config["N_PIXELS"] * scale) - 1)
-        y = np.copy(util.interpolate(y, board.config["N_PIXELS"] // 2))
-        # Map color channels according to energy in the different freq bands
-        spectrum = np.repeat(y, 2)
-        # Color channel mappings
-        r = int(np.mean(spectrum[:len(spectrum) // 3]**scale)*board.effectConfig["Energy"]["r_multiplier"])
-        g = int(np.mean(spectrum[len(spectrum) // 3: 2 * len(spectrum) // 3]**scale)*board.effectConfig["Energy"]["g_multiplier"])
-        b = int(np.mean(spectrum[2 * len(spectrum) // 3:]**scale)*board.effectConfig["Energy"]["b_multiplier"])
-        # Assign color to different frequency regions
-        self.output[0, :r] = 255
-        self.output[0, r:] = 0
-        self.output[1, :g] = 255
-        self.output[1, g:] = 0
-        self.output[2, :b] = 255
-        self.output[2, b:] = 0
-        # Apply blur to smooth the edges
-        self.output = util.blur(self.output, board.effectConfig["Energy"]["blur"])
-        if board.effectConfig["Energy"]["mirror"]:
-            p = np.concatenate((self.output[:, ::-2], self.output[:, ::2]), axis=1)
-        else:
-            p = self.output
-        
-        return p
+        options = board.effectConfig["Energy"]
+        features = board.features
+        n = board.config["N_PIXELS"]
+        # Bars reach at most `scale` of the strip, and only in the biggest parts of the song
+        reach = options["scale"] * n * self.dynamics(features, floor=0.4)
+        lengths = np.array([features.bass * options["r_multiplier"],
+                            features.mid * options["g_multiplier"],
+                            features.treble * options["b_multiplier"]]) * reach
+        self.output[:] = np.where(np.arange(n) < np.clip(lengths, 0, n)[:, np.newaxis], 255.0, 0.0)
+        output = util.blur(self.output, options["blur"])
+        if options["mirror"]:
+            output = np.concatenate((output[:, ::-2], output[:, ::2]), axis=1)
+        return output

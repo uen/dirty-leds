@@ -107,13 +107,13 @@ class Visualizer():
                                          "Wave":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["wipe_len", "Wave Start Length", "slider", (0,self.board.config["N_PIXELS"]//4,1)],
                                                  ["wipe_speed", "Wave Speed", "slider", (1,10,1)],
-                                                 ["decay", "Flash Decay", "float_slider", (0.1,1.0,0.05)]],
+                                                 ["fade", "Flash Fade (s)", "float_slider", (0.05,1.5,0.05)]],
                                      "Spectrum":[
                                                     ["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                     ["blur", "Blur", "float_slider", (0.1,4.0,0.1)]
                                                 ],
                                         "Auto": [
-                                                    ["timer", "Timer", "slider", (100, 20000, 100)]
+                                                    ["bars", "Bars per effect", "slider", (1, 32, 1)]
                                                 ],
                                    "Wavelength":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["roll_speed", "Roll Speed", "slider", (0,8,1)],
@@ -125,9 +125,9 @@ class Visualizer():
                                        "Scroll":[["lows_color", "Lows Color", "dropdown", config.settings["colors"]],
                                                  ["mids_color", "Mids Color", "dropdown", config.settings["colors"]],
                                                  ["high_color", "Highs Color", "dropdown", config.settings["colors"]],
-                                                 ["blur", "Blur", "float_slider", (0.95,1,0.005)],
+                                                 ["blur", "Blur", "float_slider", (0,3,0.1)],
                                                  ["mirror", "Mirror", "checkbox"],
-                                                 ["decay", "Decay", "float_slider", (0.97,1.0,0.0005)],
+                                                 ["trail", "Trail (s)", "float_slider", (0.1,4.0,0.1)],
                                                  ["speed", "Speed", "slider", (1,5,1)]],
                                         "Power":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["s_color", "Spark Color ", "dropdown", config.settings["colors"]],

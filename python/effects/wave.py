@@ -2,34 +2,26 @@ import numpy as np
 
 from effects.effect import Effect
 
+
 class Wave(Effect):
+    """Flashes the strip on every beat, then a gradient wipes in from both ends"""
     def __init__(self, visualizer):
         self.effectName = "Wave"
         self.wave_wipe_count = 0
 
     def visualize(self, board, y):
-        outputGradient = np.array(
-            [
-                board.visualizer.multicolor_modes[board.effectConfig["Wave"]["color_mode"]][0][:board.config["N_PIXELS"]],
-                board.visualizer.multicolor_modes[board.effectConfig["Wave"]["color_mode"]][1][:board.config["N_PIXELS"]],
-                board.visualizer.multicolor_modes[board.effectConfig["Wave"]["color_mode"]][2][:board.config["N_PIXELS"]],
-            ]
-        )
-        if board.visualizer.current_freq_detects["beat"]:
-            output = np.zeros((3,board.config["N_PIXELS"]))
-            output[0][:] = np.divide(outputGradient[2], 2)
-            output[1][:] = np.divide(outputGradient[1], 2)
-            output[2][:] = np.divide(outputGradient[0], 2)
-
-            self.wave_wipe_count = board.effectConfig["Wave"]["wipe_len"]
+        options = board.effectConfig["Wave"]
+        features = board.features
+        n = board.config["N_PIXELS"]
+        gradient = board.visualizer.gradient(options["color_mode"])[:, :n]
+        if features.beat:
+            # Flash in the gradient's colours swapped, so it stands out from the wipe
+            output = gradient[::-1] / 2 * self.dynamics(features, floor=0.5)
+            self.wave_wipe_count = options["wipe_len"]
         else:
-            output = np.multiply(board.visualizer.prev_output,board.effectConfig["Wave"]["decay"])
-            self._wipe(output, outputGradient, self.wave_wipe_count)
-            
-            if self.wave_wipe_count > board.config["N_PIXELS"]//2:
-                self.wave_wipe_count = board.config["N_PIXELS"]//2
-            self.wave_wipe_count += board.effectConfig["Wave"]["wipe_speed"]
- 
+            output = board.visualizer.prev_output * self.fade(options["fade"])
+            self._wipe(output, gradient * self.dynamics(features, floor=0.5), self.wave_wipe_count)
+            self.wave_wipe_count = min(self.wave_wipe_count, n // 2) + options["wipe_speed"]
         return output
 
     @staticmethod
@@ -46,6 +38,3 @@ class Wave(Effect):
         source = np.maximum(from_left, from_right)
         painted = source >= 0
         output[:, painted] = gradient[:, source[painted]]
-
-
-

@@ -11,11 +11,9 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                    "mirror": True,                  # Reflect output down centre of strip
                                                    "g_multiplier": 1.0,             # How much green
                                                    "b_multiplier": 1.0},            # How much blue
-                                     "Wave":      {"color_wave": "Red",             # Colour of moving bit
-                                                   "color_flash": "White",          # Colour of flashy bit
-                                                   "wipe_len":7,                    # Initial length before beat
+                                     "Wave":      {"wipe_len":7,                    # Initial length before beat
                                                    "color_mode": "Spectral",        # Color of gradient
-                                                   "decay": 0.9,                    # How quickly the flash fades away 
+                                                   "fade": 0.35,                    # Seconds for the flash to fade
                                                    "wipe_speed":1},                 # Number of pixels added to colour bit every frame
                                     
                                        "Spectrum":{"blur": 1.0, "color_mode":"Spectral"},
@@ -31,20 +29,17 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                      "Scroll":    {"lows_color": "Red",             # Colour of low frequencies
                                                    "mids_color": "Green",           # Colour of mid frequencies
                                                    "high_color": "Blue",            # Colour of high frequencies
-                                                   "decay": 0.995,                  # How quickly the colour fades away as it moves
+                                                   "trail": 1.0,                    # Seconds for colour to fade as it moves
                                                    "speed": 1,                      # Speed of scroll
                                                    "mirror": True,                  # Reflect output down centre of strip
-                                                   "r_multiplier": 1.0,             # How much red
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0,             # How much blue
-                                                   "blur": 0.2},                    # Amount of blur to apply
+                                                   "blur": 0.5},                    # Amount of blur to apply
                                      "Power":     {"color_mode": "Spectral",        # Colour gradient to display
                                                    "s_count": 20,                   # Initial number of sparks
                                                    "s_color": "White",              # Color of sparks
                                                    "mirror": True,                  # Mirror output down central axis
                                                    "flip_lr":False},                # Flip output left-right
                                      "Single":    {"color": "Purple"},              # Static color to show
-                                     "Auto":      {"timer": 500},
+                                     "Auto":      {"bars": 8},                      # Bars before switching, unless the song changes section first
                                      "Bars":      {"resolution":4,                  # Number of "bars"
                                                    "color_mode":"Spectral",         # Multicolour mode to use
                                                    "roll_speed":0,                  # How fast (if at all) to cycle colour colours across strip
@@ -117,7 +112,6 @@ settings = {                                                      # All settings
       'FPS': 60,                                   # Desired refresh rate of the visualization (frames per second)
       'maxBrightness': 255,                        # Max brightness sent to LED strip
       'N_ROLLING_HISTORY': 1,                      # Number of past audio frames to include in the rolling window
-      'MIN_VOLUME_THRESHOLD': 0.001,               # No music visualization displayed if recorded audio volume below threshold
     },
 
     "devices":devices,

@@ -1,4 +1,7 @@
+import math
 import time
+
+import config
 
 
 class Effect():
@@ -27,3 +30,15 @@ class Effect():
         count = int((now - last) / interval)
         self._last_step = last + count * interval
         return count
+
+    @staticmethod
+    def dynamics(features, floor=0.3):
+        """Brightness scale that follows how big the music is: `floor` in a breakdown, 1 in a drop"""
+        return floor + (1.0 - floor) * features.intensity
+
+    @staticmethod
+    def fade(seconds):
+        """Per-frame multiplier that fades something to about a third over `seconds`"""
+        if seconds <= 0:
+            return 0.0
+        return math.exp(-1.0 / (seconds * config.settings["configuration"]["FPS"]))

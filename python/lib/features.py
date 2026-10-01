@@ -2,8 +2,8 @@
 
 MusicFeatures.update() takes one frame of samples and returns a Features with:
 
-    bass, mid, treble   0-1, how strong each band is right now, each measured
-                        against its own recent range
+    bass, mid, treble   0-1, how strong each band is right now: its presence in
+                        the song so far times how much it is pulsing (BandLevels)
     bins                24 log-spaced bands, 0-1 each, for spectrum-style effects
     intensity           0-1, how big this part of the song is: low in an intro
                         or breakdown, high in a drop, relative to the last 30 s
@@ -85,6 +85,32 @@ class AdaptiveRange:
         self.floor = np.minimum(level, self.floor + self.rise)
         span = np.maximum(self.peak - self.floor, self.min_range)
         return np.clip((level - (self.peak - span)) / span, 0.0, 1.0)
+
+
+class BandLevels:
+    """Turns band levels in dB into 0-1 values that pulse with the music
+
+    presence: how strong the band is against its own range over the song so far,
+              so bass is low through a breakdown and high in a drop
+    pulse:    how far it is above or below its typical level over the last
+              second, so hits jump up and gaps between them drop down
+    The value is presence x pulse, smoothed with a fast attack and short release.
+    """
+    def __init__(self, dt, size, window=1.0):
+        self.presence = AdaptiveRange(dt)
+        self.recent = deque(maxlen=max(3, int(window / dt)))
+        self.envelope = Envelope(0.01, 0.12, dt, value=np.zeros(size))
+
+    def update(self, levels_db):
+        self.recent.append(levels_db)
+        history = np.array(self.recent)
+        median = np.median(history, axis=0)
+        spread = np.maximum(np.median(np.abs(history - median), axis=0), 1.5)
+        pulse = np.clip(0.5 + (levels_db - median) / (4 * spread), 0.0, 1.0)
+        return self.envelope.update(self.presence.update(levels_db) * pulse)
+
+    def silence(self):
+        return self.envelope.update(np.zeros_like(self.envelope.value))
 
 
 class OnsetDetector:
@@ -280,10 +306,8 @@ class MusicFeatures:
         self.centroid_freqs = freqs[audible]
         self.audible = audible
 
-        self.band_range = AdaptiveRange(dt)
-        self.band_envelope = Envelope(0.01, 0.15, dt)
-        self.bins_range = AdaptiveRange(dt)
-        self.bins_envelope = Envelope(0.01, 0.12, dt)
+        self.band_levels = BandLevels(dt, 3)
+        self.bin_levels = BandLevels(dt, N_BINS)
         self.intensity_band = _band(freqs, *INTENSITY_BASS)
         self.loudness = Envelope(0.3, 1.5, dt, value=SILENCE_DBFS)
         self.bass_share = Envelope(0.3, 1.5, dt, value=-20.0)
@@ -319,11 +343,11 @@ class MusicFeatures:
         bins_db = 10 * np.log10(self.filterbank @ power + 1e-12)
         if silent:
             # Keep the learned ranges for when the music comes back
-            bands = self.band_envelope.update(np.zeros(3))
-            bins = self.bins_envelope.update(np.zeros(N_BINS))
+            bands = self.band_levels.silence()
+            bins = self.bin_levels.silence()
         else:
-            bands = self.band_envelope.update(self.band_range.update(band_db))
-            bins = self.bins_envelope.update(self.bins_range.update(bins_db))
+            bands = self.band_levels.update(band_db)
+            bins = self.bin_levels.update(bins_db)
 
         # Spectral flux on compressed magnitudes, per onset range
         compressed = np.log1p(100 * spectrum)

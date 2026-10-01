@@ -31,6 +31,8 @@ def blur(array, sigma):
     Effects blur every frame with the same few sigmas, and building the kernel
     each call cost more than the blur itself. Blurs each row of a 2D array.
     """
+    if sigma <= 0:
+        return array
     return correlate1d(array, _gaussian_weights(float(sigma)), axis=-1, mode="reflect")
 
 

@@ -2,25 +2,23 @@ from effects.effect import Effect
 
 
 class Auto(Effect):
-    autoTimer = 0
-    autoEffect = 0
-    effectKeys = []
-
+    """Cycles through the music effects, changing when the song changes section or every few bars"""
     def __init__(self, visualizer):
         self.effectName = "Auto"
         self.effectKeys = list(visualizer.effects.keys())
+        self.autoEffect = 0
+        self.beats = 0
 
     def visualize(self, board, y):
-        k = self.effectKeys[self.autoEffect % len(self.effectKeys)]
-
-        if(k == 'Auto' or board.visualizer.effects[k].nonReactive):
-            self.autoEffect+=1;
-            return self.visualize(board, y)
-
-        if(board.visualizer.current_freq_detects["beat"] and self.autoTimer > board.effectConfig["Auto"]["timer"]):
-            self.autoTimer = 0
+        features = board.features
+        self.beats += features.beat
+        if features.section_change or self.beats >= 4 * board.effectConfig["Auto"]["bars"]:
             self.autoEffect += 1
-
-        self.autoTimer += 1
-
-        return board.visualizer.effects[k].visualize(board, y)
+            self.beats = 0
+        for _ in range(len(self.effectKeys)):
+            name = self.effectKeys[self.autoEffect % len(self.effectKeys)]
+            effect = board.visualizer.effects[name]
+            if name != "Auto" and not effect.nonReactive:
+                return effect.visualize(board, y)
+            self.autoEffect += 1
+        return board.visualizer.prev_output
