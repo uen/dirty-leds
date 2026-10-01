@@ -251,8 +251,9 @@ class Visualizer():
 
     @property
     def current_freq_detects(self):
-        """Beat / low / mid / high flags for this frame, from the strip's shared analyser"""
-        return self.board.signalProcessor.analyser.beats.detected
+        """Beat / low / mid / high hit flags for this frame, from the music features"""
+        features = self.board.features
+        return {"beat": features.beat, "low": features.kick_hit, "mid": features.snare_hit, "high": features.hat_hit}
 
     def get_vis(self, y, audio_input):
         effect = self.effects[self.board.config["current_effect"]]

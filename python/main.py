@@ -19,6 +19,7 @@ import lib.api as api
 import lib.server as server
 from lib.audio import AudioInput
 from lib.dsp import ExpFilter, DSP
+from lib.features import MusicFeatures
 from threading import Thread
 from visualizer import Visualizer
 
@@ -35,6 +36,11 @@ class Board():
             port          = self.config["UDP_PORT"],
             leds          = self.config["N_PIXELS"]
         )
+    @property
+    def features(self):
+        """This frame's music features (lib.features.Features), shared by every board"""
+        return music.current
+
     def getProfile(self):
         return {
             "currentEffect": self.config["current_effect"],
@@ -75,7 +81,9 @@ def frames_per_second():
 
 
 def analyse(audio_samples):
-    """Audio analysis per board. Boards with the same frequency range share one analysis"""
+    """Audio analysis per board. Boards with the same frequency range share one analysis.
+    Also updates the music features every board reads through Board.features"""
+    music.update(audio_samples)
     results = {}
     for board in boards.values():
         analyser = board.signalProcessor.analyser
@@ -126,6 +134,7 @@ def microphone_update(audio_samples):
             print('FPS {:.0f} / {:.0f}'.format(fps, config.settings["configuration"]["FPS"]))
 
 
+music = MusicFeatures()
 boards = {}
 for board in config.settings["devices"]:
     boards[board] = Board(board)
