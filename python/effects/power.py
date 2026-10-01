@@ -17,7 +17,6 @@ class Power(Effect):
         # Bit of fiddling with the y values
         y = np.copy(util.interpolate(y, board.config["N_PIXELS"] // 2))
         board.signalProcessor.common_mode.update(y)
-        self.prev_spectrum = np.copy(y)
         # Color channel mappings
         r = board.signalProcessor.r_filt.update(y - board.signalProcessor.common_mode.value)
         r = np.array([j for i in zip(r,r) for j in i])

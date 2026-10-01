@@ -8,7 +8,6 @@ class Wave(Effect):
         self.effectName = "Wave"
 
     def visualize(self, board, y):
-       # print('Beat vis called')
         outputGradient = np.array(
             [
                 board.visualizer.multicolor_modes[board.effectConfig["Wave"]["color_mode"]][0][:board.config["N_PIXELS"]],

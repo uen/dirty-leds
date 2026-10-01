@@ -8,12 +8,14 @@ from effects.effect import Effect
 class Spectrum(Effect):
     def __init__(self, visualizer):
         self.effectName = "Spectrum"
+        # Previous frame, the green channel shows how much each pixel changed
+        self.prev = np.zeros(visualizer.board.config["N_PIXELS"] // 2)
 
     def visualize(self, board, y):
         y = np.copy(util.interpolate(y, board.config["N_PIXELS"] // 2))
         board.signalProcessor.common_mode.update(y)
-        diff = y - board.visualizer.prev_spectrum
-        board.visualizer.prev_spectrum = np.copy(y)
+        diff = y - self.prev
+        self.prev = np.copy(y)
         # Color channel mappings
         r = board.signalProcessor.r_filt.update(y - board.signalProcessor.common_mode.value)
         g = np.abs(diff)
@@ -44,7 +46,4 @@ class Spectrum(Effect):
         g = np.minimum(255, np.multiply(g, 2))
         b = np.minimum(255, np.multiply(b, 2))
 
-        output = np.array([r,g,b])
-
-        board.visualizer.prev_spectrum = y
-        return output
+        return np.array([r,g,b])

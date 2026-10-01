@@ -7,8 +7,8 @@ import util
 from effects.effect import Effect
 
 class Scroll(Effect):
-    def __init__(self, board):        
-        pass
+    def __init__(self, visualizer):
+        self.output = np.zeros((3, visualizer.board.config["N_PIXELS"]))
 
     def visualize(self, board, y):
         y = y**4.0
@@ -19,7 +19,6 @@ class Scroll(Effect):
         n_pixels = board.config["N_PIXELS"]
         y = np.copy(util.interpolate(y, n_pixels // 2))
         board.signalProcessor.common_mode.update(y)
-        board.visualizer.prev_spectrum = np.copy(y)
         # split spectrum up
         # r = signal_processers[board.board].r_filt.update(y - signal_processers[board.board].common_mode.value)
         # g = np.abs(diff)
@@ -39,19 +38,18 @@ class Scroll(Effect):
         high_val = (np.array(config.settings["colors"][board.effectConfig["Scroll"]["high_color"]]) * high_max).astype(int)
         # Scrolling effect window
         speed = board.effectConfig["Scroll"]["speed"]
-        board.visualizer.output[:, speed:] = board.visualizer.output[:, :-speed]
-        board.visualizer.output = (board.visualizer.output * board.effectConfig["Scroll"]["decay"]).astype(int)
-        board.visualizer.output = gaussian_filter1d(board.visualizer.output, sigma=board.effectConfig["Scroll"]["blur"])
+        self.output[:, speed:] = self.output[:, :-speed]
+        self.output = (self.output * board.effectConfig["Scroll"]["decay"]).astype(int)
+        self.output = gaussian_filter1d(self.output, sigma=board.effectConfig["Scroll"]["blur"])
         # Create new color originating at the center
-        board.visualizer.output[0, :speed] = lows_val[0] + mids_val[0] + high_val[0]
-       	board.visualizer.output[1, :speed] = lows_val[1] + mids_val[1] + high_val[1]
-        board.visualizer.output[2, :speed] = lows_val[2] + mids_val[2] + high_val[2]
+        self.output[0, :speed] = lows_val[0] + mids_val[0] + high_val[0]
+       	self.output[1, :speed] = lows_val[1] + mids_val[1] + high_val[1]
+        self.output[2, :speed] = lows_val[2] + mids_val[2] + high_val[2]
         # Update the LED strip
-        #return np.concatenate((vis.prev_spectrum[:, ::-speed], vis.prev_spectrum), axis=1)
         if board.effectConfig["Scroll"]["mirror"]:
-            p = np.concatenate((board.visualizer.output[:, ::-2], board.visualizer.output[:, ::2]), axis=1)
+            p = np.concatenate((self.output[:, ::-2], self.output[:, ::2]), axis=1)
         else:
-            p = board.visualizer.output
+            p = self.output
         return p
 
         

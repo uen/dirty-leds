@@ -1,33 +1,19 @@
 import numpy as np
 
-
 from effects.effect import Effect
+
 
 class Mood(Effect):
     nonReactive = True
+
     def __init__(self, visualizer):
         self.effectName = "Mood"
-        self.delay = 0.05
+        self.offset = 0
 
     def visualize(self, board, y):
-        output = np.array([
-            board.visualizer.multicolor_modes[board.effectConfig["Mood"]["color_mode"]][0][:board.config["N_PIXELS"]],
-            board.visualizer.multicolor_modes[board.effectConfig["Mood"]["color_mode"]][1][:board.config["N_PIXELS"]],
-            board.visualizer.multicolor_modes[board.effectConfig["Mood"]["color_mode"]][2][:board.config["N_PIXELS"]]
-        ])
-
-        board.visualizer.multicolor_modes[board.effectConfig["Mood"]["color_mode"]] = np.roll(
-            board.visualizer.multicolor_modes[board.effectConfig["Mood"]["color_mode"]],
-            board.effectConfig["Mood"]["roll_speed"]*(-1 if board.effectConfig["Mood"]["reverse"] else 1),
-            axis=1
-        )
-
-        
-        if board.effectConfig["Mood"]["mirror"]:
+        options = board.effectConfig["Mood"]
+        output = board.visualizer.gradient(options["color_mode"], self.offset)[:, :board.config["N_PIXELS"]]
+        self.offset += options["roll_speed"] * (-1 if options["reverse"] else 1)
+        if options["mirror"]:
             output = np.concatenate((output[:, ::-2], output[:, ::2]), axis=1)
         return output
-
-
-
-
-    

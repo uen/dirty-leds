@@ -10,7 +10,6 @@ class Runner(Effect):
         self.position = 0
 
     def visualize(self, board, y):
-       # print('Beat vis called')
         output = np.array([
             [(((math.sin(i * board.effectConfig["Runner"]["times"] + (self.position/board.effectConfig["Runner"]["divide"]))+board.effectConfig["Runner"]["add"])*255)) for i in range(board.config["N_PIXELS"])],
             [(((math.sin(i * board.effectConfig["Runner"]["times"] + (self.position/board.effectConfig["Runner"]["divide"]))+board.effectConfig["Runner"]["add"])*255)) for i in range(board.config["N_PIXELS"])],

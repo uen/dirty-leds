@@ -68,17 +68,12 @@ class Visualizer():
         self.effects["Sleep"] = Sleep(self)
 
 
-        # List of all the visualisation effects that aren't audio reactive.
-        # These will still display when no music is playing.
-        self.non_reactive_effects = ["Single", "Fire", "Gradient", "Fade", "Runner", "Sleep" "Calibration"]
         # Setup for frequency detection algorithm
         self.freq_channel_history = 40
         self.beat_count = 0
        
         self.freq_channels = [deque(maxlen=self.freq_channel_history) for i in range(self.board.config["N_FFT_BINS"])]
         self.prev_output = np.array([[0 for i in range(self.board.config["N_PIXELS"])] for i in range(3)])
-        self.output = np.array([[0 for i in range(self.board.config["N_PIXELS"])] for i in range(3)])
-        self.prev_spectrum = np.array([self.board.config["N_PIXELS"] // 2])
         self.current_freq_detects = {"beat":False,
                                      "low":False,
                                      "mid":False,
@@ -170,8 +165,6 @@ class Visualizer():
                                                  ["mirror", "Mirror", "checkbox"],
                                                  ["flip_lr", "Flip LR", "checkbox"]],
                                        "Single":[["color", "Color", "dropdown", config.settings["colors"]]],
-                                         "Beat":[["color", "Color", "dropdown", config.settings["colors"]],
-                                                 ["decay", "Flash Decay", "float_slider", (0.3,0.98,0.005)]],
                                          "Bars":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["resolution", "Resolution", "slider", (1, self.board.config["N_FFT_BINS"], 1)],
                                                  ["roll_speed", "Roll Speed", "slider", (0,8,1)],
@@ -192,15 +185,15 @@ class Visualizer():
                                                  ["mirror", "Mirror", "checkbox"],
                                                  ["fast", "Fast", "checkbox"],
                                                  ["reverse", "Reverse", "checkbox"]],
-                                         "Runner":[["times", "times", "slider", (0.05,1,0.05)],
-                                                 ["divide", "divide", "slider", (1,15,1)],
-                                                 ["add", "add", "slider", (0,2, 0.1)],
+                                         "Runner":[["times", "times", "float_slider", (0.05,1,0.05)],
+                                                 ["divide", "divide", "float_slider", (1,15,0.1)],
+                                                 ["add", "add", "float_slider", (0,2, 0.1)],
                                                  ["blur", "blur", "slider", (0,5,1)],
                                                  ["color_mode", "Color Mode", "dropdown", config.settings["gradients"]]],
 
-                               "RunnerReactive":[["times", "Trail Size", "slider", (0.0,1,0.005)],
+                               "RunnerReactive":[["times", "Trail Size", "float_slider", (0.0,1,0.005)],
                                                  ["divide", "Speed", "slider", (5,50,1)],
-                                                 ["add", "add", "slider", (0,1, 0.001)],
+                                                 ["add", "add", "float_slider", (0,1, 0.001)],
                                                  ["blur", "blur", "slider", (0,5,1)],
                                                  ["color_mode", "Color Mode", "dropdown", config.settings["gradients"]]],
 
@@ -211,8 +204,8 @@ class Visualizer():
                                                  ["g", "Green value", "slider", (0,255,1)],
                                                  ["b", "Blue value", "slider", (0,255,1)]],
                                         "Sleep":[["hour", "Hour to start fade", "slider", (0,23,1)],
-                                                 ["minute", "Minute to start fade", "slider", (0,59,0)],
-                                                 ["minutes_fade", "How long to fade for", "slider", (0,60,30)]]
+                                                 ["minute", "Minute to start fade", "slider", (0,59,1)],
+                                                 ["minutes_fade", "How long to fade for", "slider", (0,60,1)]]
                                        }
         # Setup for fps counter
         self.frame_counter = 0
@@ -286,6 +279,14 @@ class Visualizer():
             self.multicolor_modes[i] = np.concatenate((self.multicolor_modes[i][:, ::-1],
                                                        self.multicolor_modes[i]), axis=1)
 
+    def gradient(self, name, offset=0):
+        """Colour gradient `name` as a (3, 2 * N_PIXELS) array, rotated by `offset` pixels
+
+        The tables are shared by every effect, so effects keep their own offset
+        rather than rolling the tables in place.
+        """
+        return np.roll(self.multicolor_modes[name], offset, axis=1)
+
     def get_vis(self, y, audio_input):
    
 
@@ -328,7 +329,8 @@ class Visualizer():
         differences = []
         for i in range(self.board.config["N_FFT_BINS"]):
             channel_avgs.append(sum(self.freq_channels[i])/len(self.freq_channels[i]))
-            differences.append(((self.freq_channels[i][0]-channel_avgs[i])*100)//channel_avgs[i])
+            # A bin that has been silent for the whole history averages to exactly 0
+            differences.append(((self.freq_channels[i][0]-channel_avgs[i])*100)//max(channel_avgs[i], 1e-6))
         for i in ["beat", "low", "mid", "high"]:
             if any(differences[j] >= self.min_percent_diff[i]\
                    and self.freq_channels[j][0] >= self.min_detect_amplitude[i]\

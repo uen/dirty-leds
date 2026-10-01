@@ -4,32 +4,15 @@ from effects.effect import Effect
 
 
 class Fade(Effect):
-	nonReactive = True
-	def __init__(self, visualizer):
-	    self.effectName = "Fade"
+    nonReactive = True
 
-	def visualize(self, board, y):
-		output = np.array([
-        	[
-        		board.visualizer.multicolor_modes[board.effectConfig["Fade"]["color_mode"]][0][0] 
-        		for i in range(board.config["N_PIXELS"])
-        	],
-        	[
-        		board.visualizer.multicolor_modes[board.effectConfig["Fade"]["color_mode"]][1][0]
-        		for i in range(board.config["N_PIXELS"])
-        	],
-            
-            [
-            	board.visualizer.multicolor_modes[board.effectConfig["Fade"]["color_mode"]][2][0] 
-            	for i in range(board.config["N_PIXELS"])
-            ]
-        ])
+    def __init__(self, visualizer):
+        self.effectName = "Fade"
+        self.offset = 0
 
-		board.visualizer.multicolor_modes[board.effectConfig["Fade"]["color_mode"]] = np.roll(
-			board.visualizer.multicolor_modes[board.effectConfig["Fade"]["color_mode"]],
-			board.effectConfig["Fade"]["roll_speed"]*(-1 if board.effectConfig["Fade"]["reverse"] else 1),
-			axis=1
-        )
-	    
-		return output
-
+    def visualize(self, board, y):
+        options = board.effectConfig["Fade"]
+        # The whole strip shows one colour, walking along the gradient
+        colour = board.visualizer.gradient(options["color_mode"], self.offset)[:, 0]
+        self.offset += options["roll_speed"] * (-1 if options["reverse"] else 1)
+        return np.tile(colour[:, np.newaxis], (1, board.config["N_PIXELS"]))

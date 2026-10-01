@@ -9,7 +9,6 @@ class RunnerReactive(Effect):
         self.effectName = "Wave"
         self.position = 0
     def visualize(self, board, y):
-       # print('Beat vis called')
         output = np.array([
             [(((math.sin(i * board.effectConfig["RunnerReactive"]["times"] + (self.position/board.effectConfig["RunnerReactive"]["divide"]))+board.effectConfig["RunnerReactive"]["add"])*((math.cos(i))))) for i in range(board.config["N_PIXELS"])],
             [(((math.sin(i * board.effectConfig["RunnerReactive"]["times"] + (self.position/board.effectConfig["RunnerReactive"]["divide"]))+board.effectConfig["RunnerReactive"]["add"])*((math.cos(i))))) for i in range(board.config["N_PIXELS"])],

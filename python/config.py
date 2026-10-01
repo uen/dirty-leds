@@ -45,8 +45,6 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                    "flip_lr":False},                # Flip output left-right
                                      "Single":    {"color": "Purple"},              # Static color to show
                                      "Auto":      {"timer": 500},
-                                     "Beat":      {"color": "Red",                  # Colour of beat flash
-                                                   "decay": 0.7},                   # How quickly the flash fades away
                                      "Bars":      {"resolution":4,                  # Number of "bars"
                                                    "color_mode":"Spectral",         # Multicolour mode to use
                                                    "roll_speed":0,                  # How fast (if at all) to cycle colour colours across strip
