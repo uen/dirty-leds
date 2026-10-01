@@ -114,9 +114,31 @@ select {
   background: #08090b;
 }
 
-.stage canvas {
+.stage-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.stage-canvas canvas {
   display: block;
   touch-action: none;
+}
+
+/* View-only settings for the 3D room, nothing here reaches the strips */
+.view-controls {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  display: grid;
+  grid-template-columns: auto 110px;
+  gap: 0.3rem 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-control);
+  background: rgb(28 29 32 / 0.8);
+}
+
+.view-controls label {
+  display: contents;
 }
 
 @media (max-width: 900px) {

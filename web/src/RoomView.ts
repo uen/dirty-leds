@@ -2,25 +2,39 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 import type { Device, Room, Vec3 } from "./api";
 
 const DEFAULT_ROOM: Room = { name: "Room", size: [5, 2.6, 4], furniture: [] };
 // LED bytes are scaled past 1.0 so bright pixels cross the bloom threshold
 const LED_GAIN = 3;
-// Each strip lights the room through a handful of point lights instead of one per LED
-const MAX_LIGHTS = 24;
-const METRES_PER_LIGHT = 0.7;
-const LIGHT_GAIN = 1.6;
-const LIGHT_OFFSET = 0.35;
+// Room light at level 1, enough to see the room clearly with the strips off
+const ROOM_LIGHT_MAX = 3;
+// Strips light the room through rectangular area lights laid along them, one per
+// stretch of strip. Area lights give a soft wash instead of point-light hot spots
+const MAX_WASH_LIGHTS = 24;
+const WASH_STRETCH = 0.8; // metres of strip per light
+const WASH_HEIGHT = 0.08; // metres, roughly the glow width of a strip
+const WASH_GAIN = 60;
+// Lights float this far off the wall, toward the middle of the room
+const WASH_OFFSET = 0.04;
+
+interface Wash {
+  light: THREE.RectAreaLight;
+  from: number;
+  to: number;
+}
 
 interface Strip {
-  name: string;
   count: number;
   mesh: THREE.InstancedMesh;
-  lights: { light: THREE.PointLight; from: number; to: number }[];
+  washes: Wash[];
 }
+
+RectAreaLightUniformsLib.init();
 
 /** Places `count` points evenly along a polyline by arc length */
 function pointsAlong(path: Vec3[], count: number): THREE.Vector3[] {
@@ -38,10 +52,17 @@ function pointsAlong(path: Vec3[], count: number): THREE.Vector3[] {
   return points;
 }
 
-function pathLength(path: Vec3[]): number {
-  let total = 0;
-  for (let i = 1; i < path.length; i++) total += new THREE.Vector3(...path[i]).distanceTo(new THREE.Vector3(...path[i - 1]));
-  return total;
+/** Normal pointing into the room from the wall, floor or ceiling closest to `point` */
+function mountingNormal(point: THREE.Vector3, [w, h, d]: Vec3): THREE.Vector3 {
+  const surfaces: [number, THREE.Vector3][] = [
+    [point.x, new THREE.Vector3(1, 0, 0)],
+    [w - point.x, new THREE.Vector3(-1, 0, 0)],
+    [point.y, new THREE.Vector3(0, 1, 0)],
+    [h - point.y, new THREE.Vector3(0, -1, 0)],
+    [point.z, new THREE.Vector3(0, 0, 1)],
+    [d - point.z, new THREE.Vector3(0, 0, -1)],
+  ];
+  return surfaces.reduce((closest, surface) => (surface[0] < closest[0] ? surface : closest))[1];
 }
 
 /** Strips without a layout get stacked along the back wall */
@@ -62,8 +83,9 @@ export class RoomView {
   private walls: { mesh: THREE.Mesh; hideWhen: (camera: THREE.Vector3) => boolean }[] = [];
   private strips = new Map<string, Strip>();
   private layoutKey = "";
-  private room: Room = DEFAULT_ROOM;
   private color = new THREE.Color();
+  private roomLight = new THREE.HemisphereLight("#dfe4ee", "#4a4440", 0);
+  private ledBrightness = 1;
 
   private resizeObserver: ResizeObserver;
 
@@ -74,7 +96,7 @@ export class RoomView {
     container.appendChild(this.renderer.domElement);
 
     this.scene.background = new THREE.Color("#08090b");
-    this.scene.add(new THREE.AmbientLight("#9aa4b8", 0.06));
+    this.scene.add(this.roomLight);
     this.scene.add(this.roomGroup);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -85,6 +107,10 @@ export class RoomView {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    // Ambient occlusion darkens corners and contact points so the room has depth
+    const ambientOcclusion = new GTAOPass(this.scene, this.camera);
+    ambientOcclusion.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.5, scale: 1.2 });
+    this.composer.addPass(ambientOcclusion);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.85, 0.45, 0.9);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -104,6 +130,19 @@ export class RoomView {
     this.renderer.domElement.remove();
   }
 
+  /** General room lighting from 0 (dark, only the strips glow) to 1 */
+  setRoomLight(level: number) {
+    this.roomLight.intensity = level * ROOM_LIGHT_MAX;
+  }
+
+  /** How bright the LEDs look and how much they light the room. View only, 1 is normal */
+  setLedBrightness(level: number) {
+    this.ledBrightness = level;
+    for (const strip of this.strips.values()) {
+      for (const { light } of strip.washes) light.intensity = WASH_GAIN * level;
+    }
+  }
+
   /** Rebuilds the scene when the room or the strips change */
   setLayout(room: Room | null, devices: Device[]) {
     room = room ?? DEFAULT_ROOM;
@@ -111,7 +150,6 @@ export class RoomView {
     if (key === this.layoutKey) return;
     const firstBuild = this.layoutKey === "";
     this.layoutKey = key;
-    this.room = room;
 
     this.roomGroup.clear();
     this.walls = [];
@@ -122,16 +160,11 @@ export class RoomView {
     this.buildShell(w, h, d);
     for (const item of room.furniture) this.buildFurniture(item);
 
-    const lengths = devices.map((device, i) => pathLength(device.layout ?? fallbackPath(i, room)));
-    const totalLength = lengths.reduce((a, b) => a + b, 0) || 1;
-    let lightBudget = MAX_LIGHTS;
+    const totalLeds = devices.reduce((sum, d) => sum + d.leds, 0) || 1;
     devices.forEach((device, i) => {
-      const path = device.layout ?? fallbackPath(i, room);
-      const wanted = Math.max(1, Math.round(lengths[i] / METRES_PER_LIGHT));
-      const share = Math.max(1, Math.floor((MAX_LIGHTS * lengths[i]) / totalLength));
-      const lightCount = Math.min(wanted, share, lightBudget);
-      lightBudget -= lightCount;
-      this.buildStrip(device, path, lightCount);
+      // Share the light budget by strip length so many strips can't blow it
+      const budget = Math.max(1, Math.floor((MAX_WASH_LIGHTS * device.leds) / totalLeds));
+      this.buildStrip(device, device.layout ?? fallbackPath(i, room), budget, room.size);
     });
 
     if (firstBuild) {
@@ -145,9 +178,9 @@ export class RoomView {
       const strip = this.strips.get(name);
       if (!strip) continue;
       const count = Math.min(strip.count, Math.floor(bytes.length / 3));
+      const gain = (LED_GAIN * this.ledBrightness) / 255;
       for (let i = 0; i < count; i++) {
-        const r = bytes[i * 3], g = bytes[i * 3 + 1], b = bytes[i * 3 + 2];
-        this.color.setRGB((r / 255) * LED_GAIN, (g / 255) * LED_GAIN, (b / 255) * LED_GAIN);
+        this.color.setRGB(bytes[i * 3] * gain, bytes[i * 3 + 1] * gain, bytes[i * 3 + 2] * gain);
         strip.mesh.setColorAt(i, this.color);
       }
       // LEDs past the end of a short packet stay dark, like on the real strip
@@ -155,23 +188,22 @@ export class RoomView {
       for (let i = count; i < strip.count; i++) strip.mesh.setColorAt(i, this.color);
       if (strip.mesh.instanceColor) strip.mesh.instanceColor.needsUpdate = true;
 
-      for (const { light, from, to } of strip.lights) {
+      for (const { light, from, to } of strip.washes) {
         let r = 0, g = 0, b = 0;
         const end = Math.min(to, count);
         for (let i = from; i < end; i++) {
           r += bytes[i * 3]; g += bytes[i * 3 + 1]; b += bytes[i * 3 + 2];
         }
-        const n = Math.max(1, to - from);
-        light.color.setRGB(r / n / 255, g / n / 255, b / n / 255);
-        // Brighter segments with more LEDs throw more light
-        light.intensity = LIGHT_GAIN * Math.sqrt(n / 10);
+        const n = Math.max(1, to - from) * 255;
+        light.color.setRGB(r / n, g / n, b / n);
       }
     }
   }
 
   private buildShell(w: number, h: number, d: number) {
-    const wallMaterial = () => new THREE.MeshStandardMaterial({ color: "#3a3b3f", roughness: 0.95 });
-    const floorMaterial = new THREE.MeshStandardMaterial({ color: "#2a2724", roughness: 0.9 });
+    // Light, matte surfaces so the strips' light shows up on them
+    const wallMaterial = () => new THREE.MeshStandardMaterial({ color: "#b9b6b0", roughness: 0.95 });
+    const floorMaterial = new THREE.MeshStandardMaterial({ color: "#6e655c", roughness: 0.85 });
     const plane = (width: number, height: number, material: THREE.Material) =>
       new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
 
@@ -219,9 +251,9 @@ export class RoomView {
     this.roomGroup.add(mesh);
   }
 
-  private buildStrip(device: Device, path: Vec3[], lightCount: number) {
+  private buildStrip(device: Device, path: Vec3[], lightBudget: number, roomSize: Vec3) {
     const points = pointsAlong(path, device.leds);
-    const geometry = new THREE.SphereGeometry(0.011, 8, 6);
+    const geometry = new THREE.SphereGeometry(0.016, 8, 6);
     const material = new THREE.MeshBasicMaterial({ toneMapped: false });
     const mesh = new THREE.InstancedMesh(geometry, material, device.leds);
     const matrix = new THREE.Matrix4();
@@ -230,21 +262,50 @@ export class RoomView {
       mesh.setColorAt(i, new THREE.Color(0, 0, 0));
     });
     this.roomGroup.add(mesh);
+    const washes = this.buildWashes(points, lightBudget, roomSize);
+    this.strips.set(device.name, { count: device.leds, mesh, washes });
+  }
 
-    // Lights sit away from the wall toward the room centre; right against it they make hot spots
-    const [w, h, d] = this.room.size;
-    const centre = new THREE.Vector3(w / 2, h / 2, d / 2);
-    const lights: Strip["lights"] = [];
-    for (let i = 0; i < lightCount; i++) {
-      const from = Math.floor((i * device.leds) / lightCount);
-      const to = Math.floor(((i + 1) * device.leds) / lightCount);
-      const middle = points[Math.floor((from + to) / 2)];
-      const light = new THREE.PointLight("#000000", 0, 5, 2);
-      light.position.copy(middle).add(centre.clone().sub(middle).normalize().multiplyScalar(LIGHT_OFFSET));
+  /**
+   * Area lights along a strip, each covering an equal run of LEDs.
+   *
+   * An area light only lights what is in front of its plane, so each one faces
+   * straight out from the surface its strip is mounted on. Tilted lights would
+   * cut a hard line where their plane crosses the neighbouring walls.
+   */
+  private buildWashes(points: THREE.Vector3[], lightBudget: number, roomSize: Vec3): Wash[] {
+    let length = 0;
+    for (let i = 1; i < points.length; i++) length += points[i].distanceTo(points[i - 1]);
+    const count = Math.min(lightBudget, Math.max(1, Math.round(length / WASH_STRETCH)));
+
+    const washes: Wash[] = [];
+    for (let i = 0; i < count; i++) {
+      const from = Math.floor((i * points.length) / count);
+      const to = Math.floor(((i + 1) * points.length) / count);
+      const start = points[from];
+      const end = points[Math.max(from, to - 1)];
+      const middle = start.clone().lerp(end, 0.5);
+      const along = end.clone().sub(start);
+      const width = Math.max(along.length(), 0.05);
+      if (along.lengthSq() === 0) along.set(1, 0, 0);
+      along.normalize();
+
+      const facing = mountingNormal(middle, roomSize);
+      // Keep the strip direction in the light's plane
+      along.sub(facing.clone().multiplyScalar(along.dot(facing)));
+      if (along.lengthSq() < 1e-6) along.set(facing.y === 0 ? 0 : 1, facing.y === 0 ? 1 : 0, 0);
+      along.normalize();
+
+      // Lights shine down their -Z axis, so Z points back at the wall
+      const back = facing.clone().negate();
+      const up = new THREE.Vector3().crossVectors(back, along);
+      const light = new THREE.RectAreaLight("#000000", WASH_GAIN * this.ledBrightness, width, WASH_HEIGHT);
+      light.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(along, up, back));
+      light.position.copy(middle).addScaledVector(facing, WASH_OFFSET);
       this.roomGroup.add(light);
-      lights.push({ light, from, to });
+      washes.push({ light, from, to });
     }
-    this.strips.set(device.name, { name: device.name, count: device.leds, mesh, lights });
+    return washes;
   }
 
   private resize() {
