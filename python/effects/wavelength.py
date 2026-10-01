@@ -1,4 +1,3 @@
-from scipy.ndimage import gaussian_filter1d
 import numpy as np
 import util
 
@@ -27,9 +26,7 @@ class Wavelength(Effect):
                                     (board.config["N_PIXELS"] if board.effectConfig["Wavelength"]["reverse_grad"] else 0):
                                     (None if board.effectConfig["Wavelength"]["reverse_grad"] else board.config["N_PIXELS"]):]*r])
         self.offset += board.effectConfig["Wavelength"]["roll_speed"]*(-1 if board.effectConfig["Wavelength"]["reverse_roll"] else 1)
-        output[0] = gaussian_filter1d(output[0], sigma=board.effectConfig["Wavelength"]["blur"])
-        output[1] = gaussian_filter1d(output[1], sigma=board.effectConfig["Wavelength"]["blur"])
-        output[2] = gaussian_filter1d(output[2], sigma=board.effectConfig["Wavelength"]["blur"])
+        output = util.blur(output, board.effectConfig["Wavelength"]["blur"])
         if board.effectConfig["Wavelength"]["flip_lr"]:
             output = np.fliplr(output)
         if board.effectConfig["Wavelength"]["mirror"]:

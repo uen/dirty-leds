@@ -1,5 +1,5 @@
-from scipy.ndimage import gaussian_filter1d
 import numpy as np
+import util
 
 from effects.effect import Effect
 
@@ -16,4 +16,4 @@ class Fire(Effect):
         # Every pixel dims the same random amount on all channels, like a flame flickering
         flicker = np.random.randint(60, size=board.config["N_PIXELS"])
         output = np.rint(np.clip(FIRE[:, np.newaxis] - (flicker + 40), 0, 255))
-        return gaussian_filter1d(output, sigma=board.effectConfig["Spectrum"]["blur"] * 8)
+        return util.blur(output, board.effectConfig["Spectrum"]["blur"] * 8)

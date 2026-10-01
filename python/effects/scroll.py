@@ -1,4 +1,3 @@
-from scipy.ndimage import gaussian_filter1d
 import numpy as np
 import config
 import util
@@ -40,7 +39,7 @@ class Scroll(Effect):
         speed = board.effectConfig["Scroll"]["speed"]
         self.output[:, speed:] = self.output[:, :-speed]
         self.output = (self.output * board.effectConfig["Scroll"]["decay"]).astype(int)
-        self.output = gaussian_filter1d(self.output, sigma=board.effectConfig["Scroll"]["blur"])
+        self.output = util.blur(self.output, board.effectConfig["Scroll"]["blur"])
         # Create new color originating at the center
         self.output[0, :speed] = lows_val[0] + mids_val[0] + high_val[0]
        	self.output[1, :speed] = lows_val[1] + mids_val[1] + high_val[1]

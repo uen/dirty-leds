@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.ndimage import correlate1d
 
 def memoize(function):
     """Provides a decorator for memoizing functions"""
@@ -14,6 +15,24 @@ def memoize(function):
             memo[args] = rv
             return rv
     return wrapper
+
+@memoize
+def _gaussian_weights(sigma):
+    """Gaussian kernel exactly as scipy.ndimage.gaussian_filter1d builds it (truncate=4)"""
+    radius = int(4.0 * sigma + 0.5)
+    x = np.arange(-radius, radius + 1)
+    weights = np.exp(-0.5 / (sigma * sigma) * x ** 2)
+    return (weights / weights.sum())[::-1]
+
+
+def blur(array, sigma):
+    """gaussian_filter1d along the last axis, with the kernel built once per sigma
+
+    Effects blur every frame with the same few sigmas, and building the kernel
+    each call cost more than the blur itself. Blurs each row of a 2D array.
+    """
+    return correlate1d(array, _gaussian_weights(float(sigma)), axis=-1, mode="reflect")
+
 
 @memoize
 def _normalized_linspace(size):

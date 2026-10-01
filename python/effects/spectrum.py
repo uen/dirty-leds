@@ -1,4 +1,3 @@
-from scipy.ndimage import gaussian_filter1d
 import numpy as np
 import util
 
@@ -34,16 +33,6 @@ class Spectrum(Effect):
             ]
         )
 
-        r = np.multiply(r, outputGradient[0])
-        g = np.multiply(g, outputGradient[1])
-        b = np.multiply(b, outputGradient[2])
-
-        r = gaussian_filter1d(r, sigma=board.effectConfig["Spectrum"]["blur"]*2)
-        g = gaussian_filter1d(g, sigma=board.effectConfig["Spectrum"]["blur"]*2)
-        b = gaussian_filter1d(b, sigma=board.effectConfig["Spectrum"]["blur"]*2)
-
-        r = np.minimum(255, np.multiply(r, 2))
-        g = np.minimum(255, np.multiply(g, 2))
-        b = np.minimum(255, np.multiply(b, 2))
-
-        return np.array([r,g,b])
+        output = np.array([r, g, b]) * outputGradient
+        output = util.blur(output, board.effectConfig["Spectrum"]["blur"]*2)
+        return np.minimum(255, output * 2)

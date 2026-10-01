@@ -1,5 +1,5 @@
-from scipy.ndimage import gaussian_filter1d
 import numpy as np
+import util
 
 from effects.effect import Effect
 
@@ -19,6 +19,6 @@ class Runner(Effect):
         gradient = board.visualizer.gradient(options["color_mode"])[:, :board.config["N_PIXELS"]]
         output = wave * (gradient / 255)
         if options["blur"] > 0:
-            output = gaussian_filter1d(output, sigma=options["blur"])
+            output = util.blur(output, options["blur"])
         self.position += 1
         return output

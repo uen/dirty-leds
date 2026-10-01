@@ -1,5 +1,5 @@
-from scipy.ndimage import gaussian_filter1d
 import numpy as np
+import util
 
 from effects.effect import Effect
 
@@ -19,6 +19,6 @@ class RunnerReactive(Effect):
         wavelength = board.visualizer.effects["Wavelength"].visualize(board, y)
         output = output * (((wavelength[0] + wavelength[1] + wavelength[1]) / 3) / 10)
         if options["blur"] > 0:
-            output = gaussian_filter1d(output, sigma=options["blur"])
+            output = util.blur(output, options["blur"])
         self.position += 1
         return output

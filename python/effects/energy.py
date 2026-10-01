@@ -1,4 +1,3 @@
-from scipy.ndimage import gaussian_filter1d
 import numpy as np
 import util
 
@@ -33,9 +32,7 @@ class Energy(Effect):
         self.output[2, :b] = 255
         self.output[2, b:] = 0
         # Apply blur to smooth the edges
-        self.output[0, :] = gaussian_filter1d(self.output[0, :], sigma=board.effectConfig["Energy"]["blur"])
-        self.output[1, :] = gaussian_filter1d(self.output[1, :], sigma=board.effectConfig["Energy"]["blur"])
-        self.output[2, :] = gaussian_filter1d(self.output[2, :], sigma=board.effectConfig["Energy"]["blur"])
+        self.output = util.blur(self.output, board.effectConfig["Energy"]["blur"])
         if board.effectConfig["Energy"]["mirror"]:
             p = np.concatenate((self.output[:, ::-2], self.output[:, ::2]), axis=1)
         else:

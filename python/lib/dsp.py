@@ -8,7 +8,7 @@ import time
 import numpy as np
 import config
 import lib.melbank as melbank
-from scipy.ndimage import gaussian_filter1d
+import util
 
 
 class ExpFilter:
@@ -23,9 +23,7 @@ class ExpFilter:
 
     def update(self, value):
         if isinstance(self.value, (list, np.ndarray, tuple)):
-            alpha = value - self.value
-            alpha[alpha > 0.0] = self.alpha_rise
-            alpha[alpha <= 0.0] = self.alpha_decay
+            alpha = np.where(value > self.value, self.alpha_rise, self.alpha_decay)
         else:
             alpha = self.alpha_rise if value > self.value else self.alpha_decay
         self.value = alpha * value + (1.0 - alpha) * self.value
@@ -112,7 +110,7 @@ class AudioAnalyser:
         mel = np.sum(mel, axis=0)
         mel = mel**2.0
         # Gain normalization
-        self.mel_gain.update(np.max(gaussian_filter1d(mel, sigma=1.0)))
+        self.mel_gain.update(np.max(util.blur(mel, 1.0)))
         mel /= self.mel_gain.value
         mel = self.mel_smoothing.update(mel)
         self.beats.update(mel)
