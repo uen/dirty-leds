@@ -95,6 +95,19 @@ yarn dev    # http://localhost:5173, proxies /api to the Python app
 ```
 
 
+**PROFILING**
+
+Time every effect stage by stage (DSP, render, send) against the 16.7 ms frame budget:
+```
+cd python
+python3 tools/benchmark.py --track "test/01 Four on the floor 120bpm.wav" --no-sync
+```
+
+See where the running app spends its time, including the web server, as a flame graph:
+```
+py-spy record -o profile.svg -- python3 main.py --config rooms/flat.json --audio "track:test/01 Four on the floor 120bpm.wav"
+```
+
 **SUPPORT**
 
 I'm working on making this better. Add me on Discord (manol#7762) for help
