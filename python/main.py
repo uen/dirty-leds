@@ -84,37 +84,39 @@ def analyse(audio_samples):
     return {name: results[board.signalProcessor.analyser] for name, board in boards.items()}
 
 
+def lead_board():
+    """The board whose frame every board shows when sync is on: the longest strip"""
+    return max(boards.values(), key=lambda board: board.config["N_PIXELS"])
+
+
+def render(board, audio_data):
+    """One board's frame: its effect's output scaled by the master brightness"""
+    audio_input = audio_data["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
+    # New array: effects may return their own state, which must not be dimmed in place
+    return board.visualizer.get_vis(audio_data["mel"], audio_input) * config.settings["brightness"]
+
+
+def render_all(audio_datas):
+    """Frames for every board. With sync on, the lead board's frame is shared by all"""
+    if config.settings["sync"]:
+        lead = lead_board()
+        output = render(lead, audio_datas[lead.board])
+        return {name: output for name in boards}
+    return {name: render(board, audio_datas[name]) for name, board in boards.items()}
+
+
+def send_all(outputs):
+    for name, board in boards.items():
+        board.esp.show(outputs[name])
+
+
 def microphone_update(audio_samples):
     global prev_fps_update
 
-    syncBoard = next(iter(boards))
-    for board in boards:
-        if(boards[syncBoard].config["N_PIXELS"] < boards[board].config["N_PIXELS"]):
-            syncBoard = board
-    
     audio_datas = analyse(audio_samples)
-        
-    outputs = {}
-
-    def renderBoard(board):
-        audio_input = audio_datas[board]["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"]
-        outputs[board] = boards[board].visualizer.get_vis(audio_datas[board]["mel"], audio_input)
-
-
-
-        # New array: effects may return their own state, which must not be dimmed in place
-        outputs[board] = outputs[board] * config.settings["brightness"]
-
-    server.broadcaster.set_audio(audio_datas[syncBoard]["mel"], audio_datas[syncBoard]["vol"])
-
-    if(config.settings["sync"]):
-        renderBoard(syncBoard)
-        for board in boards:
-            boards[board].esp.show(outputs[syncBoard])
-    else:
-        for board in boards:
-            renderBoard(board)
-            boards[board].esp.show(outputs[board])
+    lead = lead_board()
+    server.broadcaster.set_audio(audio_datas[lead.board]["mel"], audio_datas[lead.board]["vol"])
+    send_all(render_all(audio_datas))
 
     # FPS update
     fps = frames_per_second()
@@ -124,10 +126,10 @@ def microphone_update(audio_samples):
             print('FPS {:.0f} / {:.0f}'.format(fps, config.settings["configuration"]["FPS"]))
 
 
-
 boards = {}
 for board in config.settings["devices"]:
     boards[board] = Board(board)
+
 
 prev_fps_update = time.time()
 # The previous time that the frames_per_second() function was called

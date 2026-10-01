@@ -49,26 +49,17 @@ def load_frames(count):
 
 
 def time_effect(effect, frames):
-    """Mirrors microphone_update, timing each stage"""
+    """Times each stage of main.microphone_update"""
     totals = {"dsp": 0.0, "render": 0.0, "send": 0.0}
-    boards = main.boards
-    for board in boards.values():
+    for board in main.boards.values():
         board.config["current_effect"] = effect
-    render_boards = [max(boards.values(), key=lambda b: b.config["N_PIXELS"])] if config.settings["sync"] \
-        else list(boards.values())
-
     for samples in frames:
         start = time.perf_counter()
         audio = main.analyse(samples)
         after_dsp = time.perf_counter()
-        outputs = {}
-        for board in render_boards:
-            data = audio[board.board]
-            output = board.visualizer.get_vis(data["mel"], data["vol"] > config.settings["configuration"]["MIN_VOLUME_THRESHOLD"])
-            outputs[board.board] = output * config.settings["brightness"]
+        outputs = main.render_all(audio)
         after_render = time.perf_counter()
-        for name, board in boards.items():
-            board.esp.show(outputs.get(name, outputs[render_boards[0].board]))
+        main.send_all(outputs)
         end = time.perf_counter()
         totals["dsp"] += after_dsp - start
         totals["render"] += after_render - after_dsp
