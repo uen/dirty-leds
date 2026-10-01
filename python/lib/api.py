@@ -485,12 +485,14 @@ def process(data):
 def process(data):
 	if(not "value" in data): return
 	data = data["value"]
-	ve = validate_int(numpy.int(data), min_value=0, max_value=100)
-	if(ve): return ve
+	try:
+		validate_int(int(data), min_value=0, max_value=100)
+	except (TypeError, ValueError) as error:
+		return str(error)
 
 	setCustomProfile()
 
-	state["BRIGHTNESS"] = numpy.float(data)	
+	state["BRIGHTNESS"] = float(data)
 	brightness = numpy.float64(state["BRIGHTNESS"] / 100.0)
 	_config.settings["brightness"] = brightness
 	
