@@ -1,20 +1,6 @@
-
-
-
-from __future__ import print_function
-import numpy as np
-import config as config
-import lib.melbank as melbank
-from scipy.ndimage.filters import gaussian_filter1d
 from threading import Thread
-import http.client
-import time
-import sys
 import traceback
 import json
-
-import requests
-from urllib.parse import quote
 
 import paho.mqtt.client as mqtt
 
@@ -26,15 +12,6 @@ defaultOptions = {
 	"port": 1883,
 	"debug": True
 }
-
-viotState = {}
-viotStateListeners = []
-def setState(key, value):
-	print(f"state{key} set to {value}")
-
-	viotState[key] = value
-	for listener in viotStateListeners:
-		listener(viotState)
 
 class viotMqtt:
 	def __init__(self, options):
@@ -73,13 +50,6 @@ class viot:
 				"command": "state",
 				"message": state
 			}))
-
-
-		def on(self, command, callback):
-			if(not command in self.listeners):
-				self.listeners["command"] = []
-
-			self.listeners["command"].append(callback)
 
 
 		def begin(self, options):
@@ -130,11 +100,6 @@ class viot:
 				}
 			}))
 
-		def on_action(self, payload):
-			if(self.options["debug"]):
-				print(f"viot: Received command {payload['command']} with value: {payload['value']}")
-
-
 		def on_message(self, client, userdata, message):
 			commands = {
 				"status" : self.on_status,
@@ -161,11 +126,5 @@ class viot:
 				print("viot: Invalid message received")
 				return False
 
-			except Exception as ex:
-				print("error")
-				traceback.print_stack()
-				print(ex)
-				print("fs")
-
-
-
+			except Exception:
+				traceback.print_exc()

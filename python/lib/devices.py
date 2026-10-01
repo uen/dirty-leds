@@ -58,24 +58,6 @@ class ESP8266(LEDController):
         self._leds = leds
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    def detect(self):
-        from subprocess import check_output
-        from time import sleep
-        """ Uses "arp -a" to find esp8266 on windows hotspot"""
-        # Find the audio strip automagically
-        ip_addr = False
-        while not ip_addr:
-            arp_out = check_output(['arp', '-a']).splitlines()
-            for i in arp_out:
-                if self._mac_addr in str(i):
-                    ip_addr = i.split()[0].decode("utf-8")
-                    break
-            else:
-                print("Device not found at physical address {}, retrying in 1s".format(self._mac_addr))
-                sleep(1)
-        print("Found device {}, with IP address {}".format(self._mac_addr, ip_addr))
-        self._ip = ip_addr
-
     def show(self, pixels):
         """Sends UDP packets to ESP8266 to update LED strip values
         The ESP8266 will receive and decode the packets to determine what values
@@ -93,7 +75,3 @@ class ESP8266(LEDController):
         message = pixels.T.clip(0, config.settings["configuration"]["maxBrightness"])[0:self._leds].astype(np.uint8).ravel().tostring()
 
         self._sock.sendto(message, (self._ip, self._port))
-
-
-
-

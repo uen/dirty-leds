@@ -367,7 +367,7 @@ def get_profiles():
 		fileName = os.path.basename(profile)
 		with open(profile, "r") as profileJson:
 			profileData = json.load(profileJson)
-			profiles[re.sub("\.json", "", fileName)] = profileData
+			profiles[re.sub(r"\.json$", "", fileName)] = profileData
 
 	return profiles
 

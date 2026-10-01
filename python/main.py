@@ -1,27 +1,11 @@
-from __future__ import print_function
-from __future__ import division
-from scipy.ndimage.filters import gaussian_filter1d
-from collections import deque
 import time
-import sys
-import numpy as np
+from threading import Thread
 import config
 import lib.microphone as microphone
-from lib.dsp import ExpFilter
-#import lib.led as led
 import lib.devices as devices
-import lib.bottle as bottle
-import logging
-import subprocess
-from threading import Thread
-import datetime
 import lib.api as api
-import random
-import socket
-import util
+from lib.dsp import ExpFilter, DSP
 from visualizer import Visualizer
-from lib.dsp import DSP
-from lib.viot import viot
 
 class Board():
     def __init__(self, board):
@@ -76,16 +60,8 @@ def frames_per_second():
     return _fps.update(1000.0 / dt)
 
 
-#### HACK for laser ####
-import socket
-laserSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-
-
-
-
 def microphone_update(audio_samples):
-    global y_roll, prev_rms, prev_exp, prev_fps_update
+    global prev_fps_update
 
     syncBoard = next(iter(boards))
     for board in boards:
@@ -124,9 +100,8 @@ def microphone_update(audio_samples):
     fps = frames_per_second()
     if time.time() - 0.5 > prev_fps_update:
         prev_fps_update = time.time()
-
-    # if config.settings["configuration"]["displayFPS"]:
-    #print('FPS {:.0f} / {:.0f}'.format(fps, config.settings["configuration"]["FPS"]))
+        if config.settings["configuration"]["displayFPS"]:
+            print('FPS {:.0f} / {:.0f}'.format(fps, config.settings["configuration"]["FPS"]))
 
 
 
@@ -139,11 +114,6 @@ prev_fps_update = time.time()
 _time_prev = time.time() * 1000.0
 # The low-pass filter used to estimate frames-per-second
 _fps = ExpFilter(val=config.settings["configuration"]["FPS"], alpha_decay=0.2, alpha_rise=0.2)
-
-
-
-
-apiThread = None
 
 api.setBoards(boards)
 api.setConfig(config)

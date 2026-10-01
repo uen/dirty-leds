@@ -2,14 +2,7 @@
 from __future__ import print_function
 from __future__ import division
 import copy
-import os
 import json
-
-use_defaults = {"configuration": True,                           # See notes below for detailed explanation
-                "GUI_opts": False,
-                "devices": True,
-                "colors": True,
-                "gradients": True}
 
 effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur to apply
                                                    "scale":0.9,                     # Width of effect on strip
@@ -183,48 +176,6 @@ settings = {                                                      # All settings
 }
 
 
-device_req_config = {"Stripless"   : None, # duh
-                     "BlinkStick"  : None,
-                     "DotStar"     : None,
-                     "ESP8266"     : {"AUTO_DETECT": ["Auto Detect",
-                                                      "Automatically detect device on network using MAC address",
-                                                      "checkbox",
-                                                      True],
-                                      "MAC_ADDR"   : ["Mac Address",
-                                                      "Hardware address of device, used for auto-detection",
-                                                      "textbox",
-                                                      "aa-bb-cc-dd-ee-ff"],
-                                      "UDP_IP"     : ["IP Address",
-                                                      "IP address of device, used if auto-detection isn't active",
-                                                      "textbox",
-                                                      "xxx.xxx.xxx.xxx"],
-                                      "UDP_PORT"   : ["Port",
-                                                      "Port used to communicate with device",
-                                                      "textbox",
-                                                      "7778"]},
-                     "RaspberryPi" : {"LED_PIN"    : ["LED Pin",
-                                                      "GPIO pin connected to the LED strip RaspberryPi (must support PWM)",
-                                                      "textbox",
-                                                      "10"],
-                                      "LED_FREQ_HZ": ["LED Frequency",
-                                                      "LED signal frequency in Hz",
-                                                      "textbox",
-                                                      "800000"],
-                                      "LED_DMA"    : ["DMA Channel",
-                                                      "DMA channel used for generating PWM signal",
-                                                      "textbox",
-                                                      "5"],
-                                      "LED_INVERT" : ["Invert LEDs",
-                                                      "Set True if using an inverting logic level converter",
-                                                      "checkbox",
-                                                      True]},
-                     "Fadecandy"   : {"SERVER"     : ["Server Address",
-                                                      "Address of Fadecandy server",
-                                                      "textbox",
-                                                      "localhost:7890"]}
-                     }
-
-
 for board in settings["devices"]:
     if settings["devices"][board]["configuration"]["TYPE"] == 'ESP8266':
         settings["devices"][board]["configuration"]["SOFTWARE_GAMMA_CORRECTION"] = False
@@ -246,6 +197,3 @@ for board in settings["devices"]:
     # Cheeky lil fix in case the user sets an odd number of LEDs
     if settings["devices"][board]["configuration"]["N_PIXELS"] % 2:
         settings["devices"][board]["configuration"]["N_PIXELS"] -= 1
-
-# Ignore these
-# settings["configuration"]['_max_led_FPS'] = int(((settings["configuration"]["N_PIXELS"] * 30e-6) + 50e-6)**-1.0)
