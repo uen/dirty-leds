@@ -32,14 +32,14 @@ LED STRIP DATA TO ESP RX
 
 **SERVER SETUP**
 
-Needs Python 3, Node 20+ and ffmpeg (for playing tracks). On Linux, PipeWire's `pw-record` lets the lights follow whatever your PC is playing.
+Needs Python 3, Node 20+ with yarn, and ffmpeg (for playing tracks). On Linux, PipeWire's `pw-record` lets the lights follow whatever your PC is playing.
 
 ```
 cd python
 pip install -r requirements.txt
 cd ../web
-npm install
-npm run build
+yarn install
+yarn build
 ```
 
 Open `python/config.json` and add your ESP8266s:
@@ -82,7 +82,17 @@ python3 main.py --config rooms/living-room.json --audio "track:test/01 Four on t
 ```
 The web interface shows the room in 3D with the strips lit exactly as the app sends them. To lay out your real room, add a `"room"` and a `"path"` per device to your `config.json` (see the presets).
 
-For working on the web interface, run `npm run dev` in `web/` alongside `main.py` and open http://localhost:5173.
+**DEVELOPING**
+
+Run both with live reload: the web interface hot-reloads on save (React Fast Refresh), and the Python app restarts when a `.py` file changes. The page reconnects by itself.
+```
+cd python
+pip install -r requirements-dev.txt
+watchfiles --filter python "python3 main.py --config rooms/flat.json" .
+
+cd web
+yarn dev    # http://localhost:5173, proxies /api to the Python app
+```
 
 
 **SUPPORT**

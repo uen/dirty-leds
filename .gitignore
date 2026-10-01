@@ -55,3 +55,4 @@ python/music/
 # Web interface
 web/node_modules/
 web/dist/
+python/.venv/

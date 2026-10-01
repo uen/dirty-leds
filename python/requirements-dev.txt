@@ -1,0 +1,3 @@
+-r requirements.txt
+# Restarts main.py when Python files change (see README)
+watchfiles

@@ -8,11 +8,10 @@ from effects.effect import Effect
 class Stars(Effect):
     nonReactive = True
 
-    star_brightness = 0
-    stars = {}
-    dead_stars = []
     def __init__(self, visualizer):
         self.effectName = "Stars"
+        # Per instance: each board has its own Stars effect and strip length
+        self.stars = {}
         
     def visualize(self, board, y):
         output = np.zeros((3,board.config["N_PIXELS"]))
