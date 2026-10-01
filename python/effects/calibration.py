@@ -1,18 +1,15 @@
 import numpy as np
 
-
 from effects.effect import Effect
 
+
 class Calibration(Effect):
-	nonReactive = True
-	def __init__(self, visualizer):
-	    self.effectName = "Calibration"
+    nonReactive = True
 
-	def visualize(self, board, y):
-	    output = np.array([
-	  		[board.effectConfig["Calibration"]["r"] for i in range(board.config["N_PIXELS"])],
-      		[board.effectConfig["Calibration"]["g"] for i in range(board.config["N_PIXELS"])],
-       		[board.effectConfig["Calibration"]["b"] for i in range(board.config["N_PIXELS"])]
-        ])
+    def __init__(self, visualizer):
+        self.effectName = "Calibration"
 
-	    return output
+    def visualize(self, board, y):
+        options = board.effectConfig["Calibration"]
+        colour = np.array([options["r"], options["g"], options["b"]])
+        return np.tile(colour[:, np.newaxis], (1, board.config["N_PIXELS"]))

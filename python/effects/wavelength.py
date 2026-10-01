@@ -15,7 +15,7 @@ class Wavelength(Effect):
         board.signalProcessor.common_mode.update(y)
         # Color channel mappings
         r = board.signalProcessor.r_filt.update(y - board.signalProcessor.common_mode.value)
-        r = np.array([j for i in zip(r,r) for j in i])
+        r = np.repeat(r, 2)
         gradient = board.visualizer.gradient(board.effectConfig["Wavelength"]["color_mode"], self.offset)
         output = np.array([gradient[0][
                                     (board.config["N_PIXELS"] if board.effectConfig["Wavelength"]["reverse_grad"] else 0):

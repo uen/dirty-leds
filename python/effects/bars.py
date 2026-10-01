@@ -14,7 +14,7 @@ class Bars(Effect):
         board.signalProcessor.common_mode.update(y)
         # Color channel mappings
         r = board.signalProcessor.r_filt.update(y - board.signalProcessor.common_mode.value)
-        r = np.array([j for i in zip(r,r) for j in i])
+        r = np.repeat(r, 2)
         # Split y into [resulution] chunks and calculate the average of each
         max_values = np.array([max(i) for i in np.array_split(r, board.effectConfig["Bars"]["resolution"])])
         max_values = np.clip(max_values, 0, 1)

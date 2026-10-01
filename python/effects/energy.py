@@ -20,7 +20,7 @@ class Energy(Effect):
         y *= float((board.config["N_PIXELS"] * scale) - 1)
         y = np.copy(util.interpolate(y, board.config["N_PIXELS"] // 2))
         # Map color channels according to energy in the different freq bands
-        spectrum = np.array([j for i in zip(y,y) for j in i])
+        spectrum = np.repeat(y, 2)
         # Color channel mappings
         r = int(np.mean(spectrum[:len(spectrum) // 3]**scale)*board.effectConfig["Energy"]["r_multiplier"])
         g = int(np.mean(spectrum[len(spectrum) // 3: 2 * len(spectrum) // 3]**scale)*board.effectConfig["Energy"]["g_multiplier"])

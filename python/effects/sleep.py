@@ -19,10 +19,4 @@ class Sleep(Effect):
         if secondsAfter > 0 and secondsAfter <= secondsActive:
             brightness = 150 * (secondsAfter / secondsActive)
 
-        output = np.array([
-            [brightness for i in range(board.config["N_PIXELS"])],
-            [brightness for i in range(board.config["N_PIXELS"])],
-            [brightness for i in range(board.config["N_PIXELS"])],
-        ])
-
-        return output
+        return np.full((3, board.config["N_PIXELS"]), brightness)

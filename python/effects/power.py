@@ -7,10 +7,10 @@ from effects.effect import Effect
 
 
 class Power(Effect):
-    power_brightness = 0
-    power_indexes = []
     def __init__(self, visualizer):
         self.effectName = "Power"
+        self.power_brightness = 0
+        self.power_indexes = []
 
     def visualize(self, board, y):
         #board.effectConfig["Power"]["color_mode"]
@@ -19,7 +19,7 @@ class Power(Effect):
         board.signalProcessor.common_mode.update(y)
         # Color channel mappings
         r = board.signalProcessor.r_filt.update(y - board.signalProcessor.common_mode.value)
-        r = np.array([j for i in zip(r,r) for j in i])
+        r = np.repeat(r, 2)
         output = np.array([board.visualizer.multicolor_modes[board.effectConfig["Power"]["color_mode"]][0, :board.config["N_PIXELS"]]*r,
                            board.visualizer.multicolor_modes[board.effectConfig["Power"]["color_mode"]][1, :board.config["N_PIXELS"]]*r,
                            board.visualizer.multicolor_modes[board.effectConfig["Power"]["color_mode"]][2, :board.config["N_PIXELS"]]*r])
@@ -30,12 +30,11 @@ class Power(Effect):
             self.power_indexes = random.sample(range(board.config["N_PIXELS"]), board.config["N_PIXELS"]//6)
             #print("ye")
         # Assign colour to the random indexes
-        for index in self.power_indexes:
-            output[0, index] = int(config.settings["colors"][board.effectConfig["Power"]["s_color"]][0]*self.power_brightness)
-            output[1, index] = int(config.settings["colors"][board.effectConfig["Power"]["s_color"]][1]*self.power_brightness)
-            output[2, index] = int(config.settings["colors"][board.effectConfig["Power"]["s_color"]][2]*self.power_brightness)
-        # Remove some of the indexes for next time
-        self.power_indexes = [i for i in self.power_indexes if i not in random.sample(self.power_indexes, len(self.power_indexes)//4)]
+        if self.power_indexes:
+            spark = np.array(config.settings["colors"][board.effectConfig["Power"]["s_color"]]) * self.power_brightness
+            output[:, self.power_indexes] = spark.astype(int)[:, np.newaxis]
+        # Remove a quarter of the sparks for next time
+        self.power_indexes = random.sample(self.power_indexes, len(self.power_indexes) - len(self.power_indexes) // 4)
         if len(self.power_indexes) <= 4:
             self.power_indexes = []
         # Fade the colour of the sparks out a bit for next time

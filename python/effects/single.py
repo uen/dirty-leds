@@ -3,16 +3,13 @@ import config
 
 from effects.effect import Effect
 
+
 class Single(Effect):
     nonReactive = True
+
     def __init__(self, visualizer):
         self.effectName = "Single"
 
     def visualize(self, board, y):
-        output = np.array([
-            [config.settings["colors"][board.effectConfig["Single"]["color"]][0] for i in range(board.config["N_PIXELS"])],
-            [config.settings["colors"][board.effectConfig["Single"]["color"]][1] for i in range(board.config["N_PIXELS"])],
-            [config.settings["colors"][board.effectConfig["Single"]["color"]][2] for i in range(board.config["N_PIXELS"])]
-        ])
-
-        return output
+        colour = np.array(config.settings["colors"][board.effectConfig["Single"]["color"]])
+        return np.tile(colour[:, np.newaxis], (1, board.config["N_PIXELS"]))
