@@ -1,8 +1,8 @@
 from __future__ import print_function
 import numpy as np
-import config as config
+import config
 import lib.melbank as melbank
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d
 
 
 

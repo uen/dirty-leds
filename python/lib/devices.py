@@ -1,6 +1,6 @@
 import time
 import numpy as np
-import config as config
+import config
 
 class LEDController:
     def __init__(self):

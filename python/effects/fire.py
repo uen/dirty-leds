@@ -1,9 +1,5 @@
-import random
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d
 import numpy as np
-import config  as config
-import util
-from time import sleep
 
 from effects.effect import Effect
 

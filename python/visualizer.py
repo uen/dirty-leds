@@ -1,6 +1,6 @@
 from collections import deque
 import numpy as np
-import config as config
+import config
 import time
 
 class Visualizer():
@@ -90,10 +90,10 @@ class Visualizer():
         self.freq_channel_history = 40
         self.beat_count = 0
        
-        self.freq_channels = [deque(maxlen=self.freq_channel_history) for i in range(config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"])]
-        self.prev_output = np.array([[0 for i in range(config.settings["devices"][self.board.board]["configuration"]["N_PIXELS"])] for i in range(3)])
-        self.output = np.array([[0 for i in range(config.settings["devices"][self.board.board]["configuration"]["N_PIXELS"])] for i in range(3)])
-        self.prev_spectrum = np.array([config.settings["devices"][self.board.board]["configuration"]["N_PIXELS"] // 2])
+        self.freq_channels = [deque(maxlen=self.freq_channel_history) for i in range(self.board.config["N_FFT_BINS"])]
+        self.prev_output = np.array([[0 for i in range(self.board.config["N_PIXELS"])] for i in range(3)])
+        self.output = np.array([[0 for i in range(self.board.config["N_PIXELS"])] for i in range(3)])
+        self.prev_spectrum = np.array([self.board.config["N_PIXELS"] // 2])
         self.current_freq_detects = {"beat":False,
                                      "low":False,
                                      "mid":False,
@@ -102,13 +102,13 @@ class Visualizer():
                                   "low":0,
                                   "mid":0,
                                   "high":0}
-        self.detection_ranges = {"beat":(0,int(config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"]*0.11)),
-                                 "low":(int(config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"]*0.13),
-                                        int(config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"]*0.4)),
-                                 "mid":(int(config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"]*0.4),
-                                        int(config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"]*0.7)),
-                                 "high":(int(config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"]*0.8),
-                                         int(config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"]))}
+        self.detection_ranges = {"beat":(0,int(self.board.config["N_FFT_BINS"]*0.11)),
+                                 "low":(int(self.board.config["N_FFT_BINS"]*0.13),
+                                        int(self.board.config["N_FFT_BINS"]*0.4)),
+                                 "mid":(int(self.board.config["N_FFT_BINS"]*0.4),
+                                        int(self.board.config["N_FFT_BINS"]*0.7)),
+                                 "high":(int(self.board.config["N_FFT_BINS"]*0.8),
+                                         int(self.board.config["N_FFT_BINS"]))}
         self.min_detect_amplitude = {"beat":0.7,
                                      "low":0.5,
                                      "mid":0.3,
@@ -123,15 +123,15 @@ class Visualizer():
         #
         # First line of code below explained (as an example):
         #   "Energy" is the visualization we're doing options for
-        #   "blur" is the key in the options dict (config.settings["devices"][self.board.board]["effect_opts"]["Energy"]["blur"])
+        #   "blur" is the key in the options dict (self.board.effectConfig["Energy"]["blur"])
         #   "Blur" is the string we show on the GUI next to the slider
         #   "float_slider" is the GUI element we want to use
         #   (0.1,4.0,0.1) is a tuple containing all the details for setting up the slider (see above)
         #
         # Each effect key points to a list. Each list contains lists giving config for each option.
         # Syntax: effect:[key, label_text, ui_element, opts]
-        #   effect     - the effect which you want to change options for. MUST have a key in config.settings["devices"][self.board.board]["effect_opts"]
-        #   key        - the key of thing you want to be changed. MUST be in config.settings["devices"][self.board.board]["effect_opts"][effect], otherwise it won't work.
+        #   effect     - the effect which you want to change options for. MUST have a key in self.board.effectConfig
+        #   key        - the key of thing you want to be changed. MUST be in self.board.effectConfig[effect], otherwise it won't work.
         #   label      - the text displayed on the ui
         #   ui_element - how you want the variable to be changed
         #   opts       - options for the ui element. Must be a tuple.
@@ -155,7 +155,7 @@ class Visualizer():
                                                  ["g_multiplier", "Green", "float_slider", (0.05,1.0,0.05)],
                                                  ["b_multiplier", "Blue", "float_slider", (0.05,1.0,0.05)]],
                                          "Wave":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
-                                                 ["wipe_len", "Wave Start Length", "slider", (0,config.settings["devices"][self.board.board]["configuration"]["N_PIXELS"]//4,1)],
+                                                 ["wipe_len", "Wave Start Length", "slider", (0,self.board.config["N_PIXELS"]//4,1)],
                                                  ["wipe_speed", "Wave Speed", "slider", (1,10,1)],
                                                  ["decay", "Flash Decay", "float_slider", (0.1,1.0,0.05)]],
                                      "Spectrum":[
@@ -181,14 +181,14 @@ class Visualizer():
                                                  ["speed", "Speed", "slider", (1,5,1)]],
                                         "Power":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["s_color", "Spark Color ", "dropdown", config.settings["colors"]],
-                                                 ["s_count", "Spark Amount", "slider", (0,config.settings["devices"][self.board.board]["configuration"]["N_PIXELS"]//6,1)],
+                                                 ["s_count", "Spark Amount", "slider", (0,self.board.config["N_PIXELS"]//6,1)],
                                                  ["mirror", "Mirror", "checkbox"],
                                                  ["flip_lr", "Flip LR", "checkbox"]],
                                        "Single":[["color", "Color", "dropdown", config.settings["colors"]]],
                                          "Beat":[["color", "Color", "dropdown", config.settings["colors"]],
                                                  ["decay", "Flash Decay", "float_slider", (0.3,0.98,0.005)]],
                                          "Bars":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
-                                                 ["resolution", "Resolution", "slider", (1, config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"], 1)],
+                                                 ["resolution", "Resolution", "slider", (1, self.board.config["N_FFT_BINS"], 1)],
                                                  ["roll_speed", "Roll Speed", "slider", (0,8,1)],
                                                  ["flip_lr", "Flip LR", "checkbox"],
                                                  ["mirror", "Mirror", "checkbox"],
@@ -298,7 +298,7 @@ class Visualizer():
         self.multicolor_modes = {}
         for gradient in config.settings["gradients"]:
             self.multicolor_modes[gradient] = _easing_gradient_generator(config.settings["gradients"][gradient],
-                                                                         config.settings["devices"][self.board.board]["configuration"]["N_PIXELS"])
+                                                                         self.board.config["N_PIXELS"])
 
         for i in self.multicolor_modes:
             self.multicolor_modes[i] = np.concatenate((self.multicolor_modes[i][:, ::-1],
@@ -313,7 +313,7 @@ class Visualizer():
         if self.effects[currentEffect].nonReactive:
             self.prev_output = self.effects[self.board.config["current_effect"]].visualize(self.board, y)
         elif audio_input:
-            #self.prev_output = self.effects[config.settings["devices"][self.board.board]["configuration"]["current_effect"]](self.effects[config.settings["devices"][self.board.board]["configuration"]["current_effect"]], self.board, y)
+            #self.prev_output = self.effects[self.board.config["current_effect"]](self.effects[self.board.config["current_effect"]], self.board, y)
 
             self.prev_output = self.effects[self.board.config["current_effect"]].visualize(self.board, y)
         else:
@@ -348,7 +348,7 @@ class Visualizer():
         """
         channel_avgs = []
         differences = []
-        for i in range(config.settings["devices"][self.board.board]["configuration"]["N_FFT_BINS"]):
+        for i in range(self.board.config["N_FFT_BINS"]):
             channel_avgs.append(sum(self.freq_channels[i])/len(self.freq_channels[i]))
             differences.append(((self.freq_channels[i][0]-channel_avgs[i])*100)//channel_avgs[i])
         for i in ["beat", "low", "mid", "high"]:
