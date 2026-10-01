@@ -339,6 +339,9 @@ def setConfig(config):
 	global _config
 	_config = config
 
+	if not config.settings["apikey"]:
+		print("dirty-leds: No VIoT apikey set, running offline")
+		return
 	viot.begin({"apikey": config.settings["apikey"]})
 
 

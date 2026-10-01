@@ -3,6 +3,7 @@ from __future__ import print_function
 from __future__ import division
 import copy
 import json
+import os
 
 effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur to apply
                                                    "scale":0.9,                     # Width of effect on strip
@@ -81,7 +82,8 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                      }
 
 devices = {}
-with open("config.json") as configFile:
+# DIRTY_LEDS_CONFIG lets the simulator point the app at a generated device list
+with open(os.environ.get("DIRTY_LEDS_CONFIG", "config.json")) as configFile:
   data = json.load(configFile)
   for device in data["devices"]:
     devices[device["name"]] = {

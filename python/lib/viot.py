@@ -43,9 +43,12 @@ class viot:
 			self.viotState = options["defaultState"]
 			self.options = options
 			self.listeners = {}
+			self.emitTopic = None
 			
 
 		def update_state(self, state):
+			if not self.emitTopic:
+				return
 			mqttClient.publish(self.emitTopic, json.dumps({
 				"command": "state",
 				"message": state

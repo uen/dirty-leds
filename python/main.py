@@ -115,13 +115,16 @@ _time_prev = time.time() * 1000.0
 # The low-pass filter used to estimate frames-per-second
 _fps = ExpFilter(val=config.settings["configuration"]["FPS"], alpha_decay=0.2, alpha_rise=0.2)
 
-api.setBoards(boards)
-api.setConfig(config)
+def run(audio_source=None):
+    """Start the API and the audio loop in a background thread"""
+    api.setBoards(boards)
+    api.setConfig(config)
 
-def doStream():
-    microphone.start_stream(microphone_update)
+    streamThread = Thread(target=microphone.start_stream, args=(microphone_update, audio_source))
+    streamThread.daemon = True
+    streamThread.start()
+    return streamThread
 
 
 if __name__ == "__main__":
-    streamThread = Thread(target=doStream)
-    streamThread.start()
+    run().join()
