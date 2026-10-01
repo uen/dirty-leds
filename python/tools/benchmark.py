@@ -28,7 +28,7 @@ import main  # noqa: E402
 from lib.audio import MUSIC_DIR  # noqa: E402
 
 FRAME_BUDGET_MS = 1000 / config.settings["configuration"]["FPS"]
-SAMPLES = main.boards[next(iter(main.boards))].signalProcessor.samples_per_frame
+SAMPLES = main.boards[next(iter(main.boards))].signalProcessor.analyser.samples_per_frame
 # Effects that sleep() on purpose; timing them measures the sleep
 SLEEPING = {name for name, opts in config.effectOptions.items() if "delay" in opts}
 
@@ -36,12 +36,17 @@ SLEEPING = {name for name, opts in config.effectOptions.items() if "delay" in op
 def load_frames(count):
     if not args.track:
         return [(np.random.randn(SAMPLES) * 3000).astype(np.float32) for _ in range(count)]
-    # Skip the intro so the sample has music in it
-    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-ss", "45", "-i", os.path.join(MUSIC_DIR, args.track),
-                          "-f", "s16le", "-ac", "1", "-ar", str(config.settings["configuration"]["MIC_RATE"]), "-"],
+    rate = config.settings["configuration"]["MIC_RATE"]
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", os.path.join(MUSIC_DIR, args.track),
+                          "-f", "s16le", "-ac", "1", "-ar", str(rate), "-"],
                          check=True, capture_output=True).stdout
     audio = np.frombuffer(raw, dtype=np.int16).astype(np.float32)
+    # Skip the intro of long tracks so the sample has music in it
+    if len(audio) > 60 * rate:
+        audio = audio[45 * rate:]
     frames = [audio[i * SAMPLES:(i + 1) * SAMPLES] for i in range(len(audio) // SAMPLES)]
+    if not frames:
+        raise SystemExit("Track is shorter than one frame: {}".format(args.track))
     return (frames * (count // len(frames) + 1))[:count]
 
 
@@ -56,7 +61,7 @@ def time_effect(effect, frames):
 
     for samples in frames:
         start = time.perf_counter()
-        audio = {name: board.signalProcessor.update(samples) for name, board in boards.items()}
+        audio = main.analyse(samples)
         after_dsp = time.perf_counter()
         outputs = {}
         for board in render_boards:

@@ -224,7 +224,7 @@ def set_frequency(payload):
     for board in _target_boards(payload["device"]):
         board.config["MIN_FREQUENCY"] = low
         board.config["MAX_FREQUENCY"] = high
-        board.signalProcessor.create_mel_bank()
+        board.signalProcessor.update_frequency_range()
     _clear_profile()
 
 

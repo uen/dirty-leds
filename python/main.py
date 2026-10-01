@@ -74,6 +74,16 @@ def frames_per_second():
     return _fps.update(1000.0 / dt)
 
 
+def analyse(audio_samples):
+    """Audio analysis per board. Boards with the same frequency range share one analysis"""
+    results = {}
+    for board in boards.values():
+        analyser = board.signalProcessor.analyser
+        if analyser not in results:
+            results[analyser] = analyser.update(audio_samples)
+    return {name: results[board.signalProcessor.analyser] for name, board in boards.items()}
+
+
 def microphone_update(audio_samples):
     global prev_fps_update
 
@@ -82,10 +92,7 @@ def microphone_update(audio_samples):
         if(boards[syncBoard].config["N_PIXELS"] < boards[board].config["N_PIXELS"]):
             syncBoard = board
     
-    # Get processed audio data for each device
-    audio_datas = {}
-    for board in boards:
-        audio_datas[board] = boards[board].signalProcessor.update(audio_samples)
+    audio_datas = analyse(audio_samples)
         
     outputs = {}
 

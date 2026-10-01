@@ -1,10 +1,13 @@
-from __future__ import print_function
+"""Audio analysis, and the filters effects keep per strip
+
+The FFT and mel filterbank only depend on the audio and a strip's frequency
+range, so strips with the same range share one AudioAnalyser and the work is
+done once per frame instead of once per strip.
+"""
 import numpy as np
 import config
 import lib.melbank as melbank
 from scipy.ndimage import gaussian_filter1d
-
-
 
 
 class ExpFilter:
@@ -28,64 +31,37 @@ class ExpFilter:
         return self.value
 
 
+class AudioAnalyser:
+    """Turns frames of audio samples into a smoothed, gain-normalised mel spectrum"""
+    def __init__(self, n_bins, min_frequency, max_frequency):
+        rate = config.settings["configuration"]["MIC_RATE"]
+        fps = config.settings["configuration"]["FPS"]
+        history = config.settings["configuration"]["N_ROLLING_HISTORY"]
 
-
-
-class DSP():
-    def __init__(self, board):
-        self.board = board
-
-
-        # Initialise filters etc. I've no idea what most of these are for but i imagine i won't be getting rid of them soon 
-        self.fft_plot_filter = ExpFilter(np.tile(1e-1, self.board.config["N_FFT_BINS"]), alpha_decay=0.5, alpha_rise=0.99)
-        self.mel_gain =        ExpFilter(np.tile(1e-1, self.board.config["N_FFT_BINS"]), alpha_decay=0.01, alpha_rise=0.99)
-        self.mel_smoothing =   ExpFilter(np.tile(1e-1, self.board.config["N_FFT_BINS"]), alpha_decay=0.5, alpha_rise=0.99)
-        self.gain =            ExpFilter(np.tile(0.01, self.board.config["N_FFT_BINS"]), alpha_decay=0.001, alpha_rise=0.99)
-        self.r_filt =          ExpFilter(np.tile(0.01, self.board.config["N_PIXELS"] // 2), alpha_decay=0.2, alpha_rise=0.99)
-        self.g_filt =          ExpFilter(np.tile(0.01, self.board.config["N_PIXELS"] // 2), alpha_decay=0.05, alpha_rise=0.3)
-        self.b_filt =          ExpFilter(np.tile(0.01, self.board.config["N_PIXELS"] // 2), alpha_decay=0.1, alpha_rise=0.5)
-        self.common_mode =     ExpFilter(np.tile(0.01, self.board.config["N_PIXELS"] // 2), alpha_decay=0.99, alpha_rise=0.01)
-        self.p_filt =          ExpFilter(np.tile(1, (3, self.board.config["N_PIXELS"] // 2)), alpha_decay=0.1, alpha_rise=0.99)
-        self.volume =          ExpFilter(config.settings["configuration"]["MIN_VOLUME_THRESHOLD"], alpha_decay=0.02, alpha_rise=0.02)
-        self.p =               np.tile(1.0, (3, self.board.config["N_PIXELS"] // 2))
-        
-        # Number of audio samples to read every time frame
-        self.samples_per_frame = int(config.settings["configuration"]["MIC_RATE"] / config.settings["configuration"]["FPS"])
-        # Array containing the rolling audio sample window
-        self.y_roll = np.random.rand(config.settings["configuration"]["N_ROLLING_HISTORY"], self.samples_per_frame) / 1e16
-        self.fft_window =      np.hamming(int(config.settings["configuration"]["MIC_RATE"] / config.settings["configuration"]["FPS"])\
-                                         * config.settings["configuration"]["N_ROLLING_HISTORY"])
-
-        self.samples = None
-        self.mel_y = None
-        self.mel_x = None
-        self.create_mel_bank()
+        self.samples_per_frame = int(rate / fps)
+        # Rolling window of the last `history` frames of audio
+        self.y_roll = np.zeros((history, self.samples_per_frame))
+        self.fft_window = np.hamming(self.samples_per_frame * history)
+        self.mel_gain = ExpFilter(np.tile(1e-1, n_bins), alpha_decay=0.01, alpha_rise=0.99)
+        self.mel_smoothing = ExpFilter(np.tile(1e-1, n_bins), alpha_decay=0.5, alpha_rise=0.99)
+        self.mel_y, _ = melbank.compute_melmat(num_mel_bands=n_bins,
+                                               freq_min=min_frequency,
+                                               freq_max=max_frequency,
+                                               num_fft_bands=int(rate * history / (2.0 * fps)),
+                                               sample_rate=rate)
 
     def update(self, audio_samples):
-        """ Return processed audio data
-
-        Returns mel curve, x/y data
-
-        This is called every time there is a microphone update
-
-        Returns
-        -------
-        audio_data : dict
-            Dict containinng "mel", "vol", "x", and "y"
-        """
-
-        audio_data = {}
+        """Analyse one frame. Returns {"mel": spectrum, "vol": peak level 0-1}"""
         # Normalize samples between 0 and 1
         y = audio_samples / 2.0**15
         # Construct a rolling window of audio samples
         self.y_roll[:-1] = self.y_roll[1:]
-        self.y_roll[-1, :] = np.copy(y)
+        self.y_roll[-1, :] = y
         y_data = np.concatenate(self.y_roll, axis=0).astype(np.float32)
         vol = np.max(np.abs(y_data))
-        # Transform audio input into the frequency domain
+        # Transform audio input into the frequency domain, padded to the next power of two
         N = len(y_data)
         N_zeros = 2**int(np.ceil(np.log2(N))) - N
-        # Pad with zeros until the next power of two
         y_data *= self.fft_window
         y_padded = np.pad(y_data, (0, N_zeros), mode='constant')
         YS = np.abs(np.fft.rfft(y_padded)[:N // 2])
@@ -98,35 +74,34 @@ class DSP():
         self.mel_gain.update(np.max(gaussian_filter1d(mel, sigma=1.0)))
         mel /= self.mel_gain.value
         mel = self.mel_smoothing.update(mel)
-        x = np.linspace(self.board.config["MIN_FREQUENCY"], self.board.config["MAX_FREQUENCY"], len(mel))
-        y = self.fft_plot_filter.update(mel)
-
-        audio_data["mel"] = mel
-        audio_data["vol"] = vol
-        audio_data["x"]   = x
-        audio_data["y"]   = y
-        return audio_data
-
-    def rfft(self, data, window=None):
-        window = 1.0 if window is None else window(len(data))
-        ys = np.abs(np.fft.rfft(data * window))
-        xs = np.fft.rfftfreq(len(data), 1.0 / config.settings["configuration"]["MIC_RATE"])
-        return xs, ys
+        return {"mel": mel, "vol": vol}
 
 
-    def fft(self, data, window=None):
-        window = 1.0 if window is None else window(len(data))
-        ys = np.fft.fft(data * window)
-        xs = np.fft.fftfreq(len(data), 1.0 / config.settings["configuration"]["MIC_RATE"])
-        return xs, ys
+_analysers = {}
 
 
-    def create_mel_bank(self):
-        samples = int(config.settings["configuration"]["MIC_RATE"] * config.settings["configuration"]["N_ROLLING_HISTORY"]\
-                                                   / (2.0 * config.settings["configuration"]["FPS"]))
-        self.mel_y, (_, self.mel_x) = melbank.compute_melmat(num_mel_bands=self.board.config["N_FFT_BINS"],
-                                                             freq_min=self.board.config["MIN_FREQUENCY"],
-                                                             freq_max=self.board.config["MAX_FREQUENCY"],
-                                                             num_fft_bands=samples,
-                                                             sample_rate=config.settings["configuration"]["MIC_RATE"])
+def analyser_for(n_bins, min_frequency, max_frequency):
+    """The shared analyser for a frequency range, created on first use"""
+    key = (n_bins, min_frequency, max_frequency)
+    if key not in _analysers:
+        _analysers[key] = AudioAnalyser(*key)
+    return _analysers[key]
 
+
+class DSP():
+    """Per-strip filters that effects carry from frame to frame, plus the strip's analyser"""
+    def __init__(self, board):
+        self.board = board
+        n_bins = board.config["N_FFT_BINS"]
+        half_strip = board.config["N_PIXELS"] // 2
+        self.gain =        ExpFilter(np.tile(0.01, n_bins), alpha_decay=0.001, alpha_rise=0.99)
+        self.r_filt =      ExpFilter(np.tile(0.01, half_strip), alpha_decay=0.2, alpha_rise=0.99)
+        self.b_filt =      ExpFilter(np.tile(0.01, half_strip), alpha_decay=0.1, alpha_rise=0.5)
+        self.common_mode = ExpFilter(np.tile(0.01, half_strip), alpha_decay=0.99, alpha_rise=0.01)
+        self.update_frequency_range()
+
+    def update_frequency_range(self):
+        """Pick up a changed MIN_FREQUENCY / MAX_FREQUENCY"""
+        self.analyser = analyser_for(self.board.config["N_FFT_BINS"],
+                                     self.board.config["MIN_FREQUENCY"],
+                                     self.board.config["MAX_FREQUENCY"])
