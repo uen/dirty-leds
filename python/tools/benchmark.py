@@ -29,8 +29,6 @@ from lib.audio import MUSIC_DIR  # noqa: E402
 
 FRAME_BUDGET_MS = 1000 / config.settings["configuration"]["FPS"]
 SAMPLES = main.boards[next(iter(main.boards))].signalProcessor.analyser.samples_per_frame
-# Effects that sleep() on purpose; timing them measures the sleep
-SLEEPING = {name for name, opts in config.effectOptions.items() if "delay" in opts}
 
 
 def load_frames(count):
@@ -90,9 +88,6 @@ def main_():
 
     results = []
     for effect in main.boards[next(iter(main.boards))].visualizer.effects:
-        if effect in SLEEPING:
-            results.append((effect, None))
-            continue
         results.append((effect, time_effect(effect, frames)))
 
     print("{:<16}{:>8}{:>8}{:>8}{:>8}  budget".format("effect", "dsp", "render", "send", "total"))
@@ -101,10 +96,6 @@ def main_():
         total = sum(t.values())
         bar = "#" * min(40, int(40 * total / FRAME_BUDGET_MS))
         print("{:<16}{:>8.2f}{:>8.2f}{:>8.2f}{:>8.2f}  {}".format(effect, t["dsp"], t["render"], t["send"], total, bar))
-    for effect, _ in results:
-        if effect in SLEEPING:
-            delay = config.effectOptions[effect]["delay"]
-            print("{:<16}  sleeps {:.0f} ms per board every frame (effect option 'delay')".format(effect, delay * 1000))
 
 
 if __name__ == "__main__":

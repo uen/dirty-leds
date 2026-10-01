@@ -56,7 +56,7 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                     "star_speed" : 0.0006},
                                       "Mood":  {"color_mode":"Spectral",         # Colour gradient to display
                                                    "roll_speed": 1,
-                                                   "delay" : 0.1,                 # How fast (if at all) to cycle colour colours across strip
+                                                   "delay" : 0.1,                 # Seconds between steps of the colour roll
                                                    "fast": False,                   # Fast/Slow
                                                    "mirror": False,                 # Mirror gradient down central axis
                                                    "reverse": False},               # Reverse movement of gradient
@@ -74,7 +74,7 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                     "b": 100},
                                      
                                       "Sleep": {"hour":6, "minute":9, "minutes_fade": 30},
-                                      "Fire": {"delay":0.04},
+                                      "Fire": {"delay":0.04},                                    # Seconds between flickers
                                       "Runner": {"color_mode":"Spectral", "times":0.15, "add":0.1, "divide":4.7,"blur":0},
                                       "RunnerReactive": {"color_mode":"Fruity", "times":0.90, "add":0.8, "divide":18,"blur":1}
                                      }

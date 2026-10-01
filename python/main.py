@@ -101,8 +101,6 @@ def microphone_update(audio_samples):
         outputs[board] = boards[board].visualizer.get_vis(audio_datas[board]["mel"], audio_input)
 
 
-        if(boards[board].config["current_effect"] in boards[board].effectConfig and "delay" in boards[board].effectConfig[boards[board].config["current_effect"]]):
-            time.sleep(boards[board].effectConfig[boards[board].config["current_effect"]]["delay"])
 
         # New array: effects may return their own state, which must not be dimmed in place
         outputs[board] = outputs[board] * config.settings["brightness"]
