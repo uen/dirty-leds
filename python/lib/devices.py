@@ -57,6 +57,9 @@ class ESP8266(LEDController):
         self._port = port
         self._leds = leds
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Last packet sent, mirrored to the web interface
+        self.last_frame = bytes(leds * 3)
+        self.frame_count = 0
 
     def show(self, pixels):
         """Sends UDP packets to ESP8266 to update LED strip values
@@ -75,3 +78,5 @@ class ESP8266(LEDController):
         message = pixels.T.clip(0, config.settings["configuration"]["maxBrightness"])[0:self._leds].astype(np.uint8).ravel().tobytes()
 
         self._sock.sendto(message, (self._ip, self._port))
+        self.last_frame = message
+        self.frame_count += 1

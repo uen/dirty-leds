@@ -49,3 +49,9 @@ Temporary Items
 # Python
 __pycache__
 profiles/*
+# Music for the audio sources (test tracks are generated on start)
+python/music/
+
+# Web interface
+web/node_modules/
+web/dist/

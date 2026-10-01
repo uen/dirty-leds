@@ -82,7 +82,7 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                      }
 
 devices = {}
-# DIRTY_LEDS_CONFIG lets the simulator point the app at a generated device list
+# DIRTY_LEDS_CONFIG picks another device list, e.g. a room preset in rooms/
 with open(os.environ.get("DIRTY_LEDS_CONFIG", "config.json")) as configFile:
   data = json.load(configFile)
   for device in data["devices"]:
@@ -98,7 +98,9 @@ with open(os.environ.get("DIRTY_LEDS_CONFIG", "config.json")) as configFile:
           "MAX_FREQUENCY": 18000,
           "current_effect": "Calibration"
         },
-        "effect_opts": copy.deepcopy(effectOptions)  
+        "effect_opts": copy.deepcopy(effectOptions),
+        # Optional 3D path of the strip, [[x, y, z], ...] in metres, for the room view
+        "layout": device.get("path"),
     }
     print("Loaded device: ", device["name"])
 
@@ -107,7 +109,9 @@ settings = {                                                      # All settings
     "sync" : True,
     "brightness" : 0.8,
     "currentProfile": "",
-    "apikey": "",  # Put your viot Device API key here (viot.co.uk)
+    "server": {"host": "127.0.0.1", "port": 8000, **data.get("server", {})},  # Web interface
+    "room": data.get("room"),                     # Optional room box and furniture for the room view
+    "pipes": data.get("pipes", []),               # Optional named PCM FIFOs offered as audio sources
 
     "configuration":{
       'displayFPS': False,

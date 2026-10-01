@@ -1,10 +1,25 @@
+import argparse
+import os
 import time
-from threading import Thread
+
+parser = argparse.ArgumentParser(description="Music reactive LED strips")
+parser.add_argument("--config", help="device config to use instead of config.json, e.g. rooms/living-room.json")
+parser.add_argument("--audio", default="off",
+                    help="off, mic, system, track:<file in music/> or pipe:<fifo path>")
+parser.add_argument("--host", help="web interface host (default from config, 127.0.0.1)")
+parser.add_argument("--port", type=int, help="web interface port (default from config, 8000)")
+if __name__ == "__main__":
+    args = parser.parse_args()
+    if args.config:
+        os.environ["DIRTY_LEDS_CONFIG"] = args.config
+
 import config
-import lib.microphone as microphone
 import lib.devices as devices
 import lib.api as api
+import lib.server as server
+from lib.audio import AudioInput
 from lib.dsp import ExpFilter, DSP
+from threading import Thread
 from visualizer import Visualizer
 
 class Board():
@@ -28,10 +43,9 @@ class Board():
        
     def setProfile(self, profile):
         self.config["current_effect"] = profile["currentEffect"]
-        config.settings["devices"][board]["effect_opts"] = profile["effectConfig"]
-        self.effectConfig = config.settings["devices"][board]["effect_opts"]
-
-        print("PROFILE SET CUR EFFECT", self.config)
+        # Merge so effects added since the profile was saved keep their defaults
+        for effect, options in profile["effectConfig"].items():
+            self.effectConfig.setdefault(effect, {}).update(options)
 
 
 def frames_per_second():
@@ -83,9 +97,10 @@ def microphone_update(audio_samples):
         if(boards[board].config["current_effect"] in boards[board].effectConfig and "delay" in boards[board].effectConfig[boards[board].config["current_effect"]]):
             time.sleep(boards[board].effectConfig[boards[board].config["current_effect"]]["delay"])
 
-        outputs[board][0] = outputs[board][0] * config.settings["brightness"]
-        outputs[board][1] = outputs[board][1] * config.settings["brightness"]
-        outputs[board][2] = outputs[board][2] * config.settings["brightness"]
+        # New array: effects may return their own state, which must not be dimmed in place
+        outputs[board] = outputs[board] * config.settings["brightness"]
+
+    server.broadcaster.set_audio(audio_datas[syncBoard]["mel"], audio_datas[syncBoard]["vol"])
 
     if(config.settings["sync"]):
         renderBoard(syncBoard)
@@ -115,16 +130,29 @@ _time_prev = time.time() * 1000.0
 # The low-pass filter used to estimate frames-per-second
 _fps = ExpFilter(val=config.settings["configuration"]["FPS"], alpha_decay=0.2, alpha_rise=0.2)
 
-def run(audio_source=None):
-    """Start the API and the audio loop in a background thread"""
+def run(audio_source="off", host=None, port=None):
+    """Start the web interface and the audio loop in a background thread"""
     api.setBoards(boards)
     api.setConfig(config)
 
-    streamThread = Thread(target=microphone.start_stream, args=(microphone_update, audio_source))
-    streamThread.daemon = True
-    streamThread.start()
-    return streamThread
+    audio = AudioInput(microphone_update, on_change=api.notify)
+    audio.set_source(audio_source, trusted=True)
+    api.setAudio(audio)
+
+    host = host or config.settings["server"]["host"]
+    port = port or config.settings["server"]["port"]
+    server.start(boards, host, port)
+    print("dirty-leds: web interface at http://{}:{}".format(host, port))
+
+    audioThread = Thread(target=audio.run, daemon=True)
+    audioThread.start()
+    return audioThread
 
 
 if __name__ == "__main__":
-    run().join()
+    from tools.make_test_tracks import generate
+    generate()
+    try:
+        run(args.audio, args.host, args.port).join()
+    except KeyboardInterrupt:
+        pass
