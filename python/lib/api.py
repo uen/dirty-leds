@@ -5,7 +5,6 @@ import re
 import glob
 from .vendor.validation import (
 	validate_int,
-	validate_float,
 	validate_structure,
 	validate_bool,
 	validate_text
@@ -23,10 +22,8 @@ viot = viot_({
 def reload_state():
 	devices, effects = get_devices_effects()
 
-	tabs = []
 	for device in devices:
 		for effect in device["effects"]["reactive"] + device["effects"]["nreactive"]:
-			effectOptionContent = []
 			for option in effect["options"]:
 				state[f"OPTION/{device['name']}/{effect['name']}/{option['k']}"] = effect["current_options"][option["k"]]
 
@@ -35,19 +32,19 @@ def reload_state():
 		state[f"CURRENT_EFFECT/{device['name']}"] = device["currentEffect"]
 
 	# Set brightness and sync in state
-	state[f"BRIGHTNESS"] = _config.settings["brightness"] * 100
-	state[f"SYNC"] = _config.settings["sync"]
-	state[f"CURRENT_PROFILE"] = _config.settings["currentProfile"]
-	state[f"SAVE_PROFILE_VISIBLE"] = state[f"CURRENT_PROFILE"] == ""
-	state[f"DELETE_PROFILE_VISIBLE"] = state[f"CURRENT_PROFILE"] != ""
+	state["BRIGHTNESS"] = _config.settings["brightness"] * 100
+	state["SYNC"] = _config.settings["sync"]
+	state["CURRENT_PROFILE"] = _config.settings["currentProfile"]
+	state["SAVE_PROFILE_VISIBLE"] = state["CURRENT_PROFILE"] == ""
+	state["DELETE_PROFILE_VISIBLE"] = state["CURRENT_PROFILE"] != ""
 
 	viot.update_state(state)
 	
 # Change the state to custom once something has been changed
 def setCustomProfile():
-	state[f"DELETE_PROFILE_VISIBLE"] = False
-	state[f"SAVE_PROFILE_VISIBLE"] = True
-	state[f"CURRENT_PROFILE"] = ""
+	state["DELETE_PROFILE_VISIBLE"] = False
+	state["SAVE_PROFILE_VISIBLE"] = True
+	state["CURRENT_PROFILE"] = ""
 
 # Generate control panel template for viot
 def get_template():
@@ -157,16 +154,6 @@ def get_template():
 			"type": "section",
 			"label": device['name'],
 			"content": [
-			# 	{
-			# 				"type": "button-toggle-bar",
-			# 				"color": "info",
-			# 				"rounded": True,
-			# 				"action": "set-effect",
-			# 				"state": f"CURRENT_EFFECT/{device['name']}",
-			# 				"buttons": nonReactiveButtons
-			# 			}
-			# ]
-			# [
 				{
 					"type": "columns",
 					"content": [
@@ -268,7 +255,7 @@ def get_template():
 						"color": "warning",
 						"rounded": True,
 						"action": "set-profile",
-						"state": f"CURRENT_PROFILE"
+						"state": "CURRENT_PROFILE"
 					}
 				],
 			},
@@ -382,7 +369,7 @@ def get_profile_buttons():
 		})
 
 
-	state[f"PROFILE_BUTTONS"] = profileButtons
+	state["PROFILE_BUTTONS"] = profileButtons
 	return profileButtons	
 	
 
@@ -560,7 +547,7 @@ def process(data):
 @viot.action("delete-profile")
 def process(data):
 	if(not "CURRENT_PROFILE" in state): return
-	path = "./profiles/"+state[f"CURRENT_PROFILE"]+".json"
+	path = "./profiles/"+state["CURRENT_PROFILE"]+".json"
 	if(os.path.isfile(path)):
 		os.remove(path)
 
@@ -581,8 +568,8 @@ def set_profile(profileName):
 			_config.settings["currentProfile"] = profileName
 
 
-			state[f"DELETE_PROFILE_VISIBLE"] = True
-			state[f"SAVE_PROFILE_VISIBLE"] = False
+			state["DELETE_PROFILE_VISIBLE"] = True
+			state["SAVE_PROFILE_VISIBLE"] = False
 
 
 			for device_, deviceData_ in profileData["devices"].items():

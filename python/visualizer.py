@@ -9,21 +9,6 @@ class Visualizer():
         self.board = board
         # Dictionary linking names of effects to their respective functions
         self.effects = {}
-        """{"Scroll":self.visualize_scroll,
-                        "Energy":self.visualize_energy,
-                        "Spectrum":self.visualize_spectrum,
-                        "Power":self.visualize_power,
-                        "Wavelength":self.visualize_wavelength,
-                        "Beat":self.visualize_beat,
-                        "Wave":self.visualize_wave,
-                        "Bars":self.visualize_bars,
-                        #"Pulse":self.visualize_pulse,
-                        #"Auto":self.visualize_auto,
-                        "Single":self.visualize_single,
-                        "Fire":self.visualize_fire,
-                        "Fade":self.visualize_fade,
-                        "Gradient":self.visualize_gradient,
-                        "Calibration": self.visualize_calibration}"""
 
         from effects.off import Off
         self.effects["Off"] = Off(self)
@@ -240,9 +225,6 @@ class Visualizer():
         # Setup for multicolour modes (don't mess with this either unless you want to add in your own multicolour modes)
         # If there's a multicolour mode you would like to see, let me know on GitHub! 
 
-        #def _vect_easing_func_gen(slope=2.5, length=1):
-        #    return np.vectorize(_easing_func)
-
         def _easing_func(x, length, slope=2.5):
             # returns a nice eased curve with defined length and curve
             xa = (x/length)**slope
@@ -326,10 +308,6 @@ class Visualizer():
             fps = self.frame_counter//elapsed
             latency = elapsed/self.frame_counter
             self.frame_counter = 0
-
-            #if config.settings["configuration"]["USE_GUI"]:
-            #    gui.label_latency.setText("{:0.3f} ms Processing Latency   ".format(latency))
-            #    gui.label_fps.setText('{:.0f} / {:.0f} FPS   '.format(fps, config.settings["configuration"]["FPS"]))
 
         return self.prev_output
 
