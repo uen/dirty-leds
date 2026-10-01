@@ -4,6 +4,7 @@ The FFT and mel filterbank only depend on the audio and a strip's frequency
 range, so strips with the same range share one AudioAnalyser and the work is
 done once per frame instead of once per strip.
 """
+import time
 import numpy as np
 import config
 import lib.melbank as melbank
@@ -31,6 +32,45 @@ class ExpFilter:
         return self.value
 
 
+class BeatDetector:
+    """Flags beats and low / mid / high hits
+
+    A range hits when one of its mel bins jumps well above that bin's average
+    over the last HISTORY frames and is loud enough. Each range then waits
+    COOLDOWN seconds before it can hit again.
+    """
+    HISTORY = 40
+    COOLDOWN = 0.2
+    # Fractions of the mel bins each range covers
+    RANGES = {"beat": (0, 0.11), "low": (0.13, 0.4), "mid": (0.4, 0.7), "high": (0.8, 1.0)}
+    MIN_AMPLITUDE = {"beat": 0.7, "low": 0.5, "mid": 0.3, "high": 0.3}
+    MIN_PERCENT_DIFF = {"beat": 70, "low": 100, "mid": 50, "high": 30}
+
+    def __init__(self, n_bins):
+        self.history = np.zeros((self.HISTORY, n_bins))
+        self.frames = 0
+        self.ranges = {name: (int(n_bins * start), int(n_bins * end)) for name, (start, end) in self.RANGES.items()}
+        self.last_hit = dict.fromkeys(self.RANGES, 0.0)
+        self.detected = dict.fromkeys(self.RANGES, False)
+
+    def update(self, mel):
+        self.history[self.frames % self.HISTORY] = mel
+        self.frames += 1
+        if self.frames < self.HISTORY:
+            return
+        average = self.history.mean(axis=0)
+        # A bin that has been silent for the whole history averages to exactly 0
+        percent_diff = ((mel - average) * 100) // np.maximum(average, 1e-6)
+        now = time.time()
+        for name, (start, end) in self.ranges.items():
+            loud_jump = (percent_diff[start:end] >= self.MIN_PERCENT_DIFF[name]) & \
+                        (mel[start:end] >= self.MIN_AMPLITUDE[name])
+            hit = bool(loud_jump.any()) and now - self.last_hit[name] > self.COOLDOWN
+            if hit:
+                self.last_hit[name] = now
+            self.detected[name] = hit
+
+
 class AudioAnalyser:
     """Turns frames of audio samples into a smoothed, gain-normalised mel spectrum"""
     def __init__(self, n_bins, min_frequency, max_frequency):
@@ -44,6 +84,7 @@ class AudioAnalyser:
         self.fft_window = np.hamming(self.samples_per_frame * history)
         self.mel_gain = ExpFilter(np.tile(1e-1, n_bins), alpha_decay=0.01, alpha_rise=0.99)
         self.mel_smoothing = ExpFilter(np.tile(1e-1, n_bins), alpha_decay=0.5, alpha_rise=0.99)
+        self.beats = BeatDetector(n_bins)
         self.mel_y, _ = melbank.compute_melmat(num_mel_bands=n_bins,
                                                freq_min=min_frequency,
                                                freq_max=max_frequency,
@@ -74,6 +115,7 @@ class AudioAnalyser:
         self.mel_gain.update(np.max(gaussian_filter1d(mel, sigma=1.0)))
         mel /= self.mel_gain.value
         mel = self.mel_smoothing.update(mel)
+        self.beats.update(mel)
         return {"mel": mel, "vol": vol}
 
 

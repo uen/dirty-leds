@@ -1,7 +1,5 @@
-from collections import deque
 import numpy as np
 import config
-import time
 
 class Visualizer():
     def __init__(self, board):
@@ -68,35 +66,7 @@ class Visualizer():
         self.effects["Sleep"] = Sleep(self)
 
 
-        # Setup for frequency detection algorithm
-        self.freq_channel_history = 40
-        self.beat_count = 0
-       
-        self.freq_channels = [deque(maxlen=self.freq_channel_history) for i in range(self.board.config["N_FFT_BINS"])]
         self.prev_output = np.array([[0 for i in range(self.board.config["N_PIXELS"])] for i in range(3)])
-        self.current_freq_detects = {"beat":False,
-                                     "low":False,
-                                     "mid":False,
-                                     "high":False}
-        self.prev_freq_detects = {"beat":0,
-                                  "low":0,
-                                  "mid":0,
-                                  "high":0}
-        self.detection_ranges = {"beat":(0,int(self.board.config["N_FFT_BINS"]*0.11)),
-                                 "low":(int(self.board.config["N_FFT_BINS"]*0.13),
-                                        int(self.board.config["N_FFT_BINS"]*0.4)),
-                                 "mid":(int(self.board.config["N_FFT_BINS"]*0.4),
-                                        int(self.board.config["N_FFT_BINS"]*0.7)),
-                                 "high":(int(self.board.config["N_FFT_BINS"]*0.8),
-                                         int(self.board.config["N_FFT_BINS"]))}
-        self.min_detect_amplitude = {"beat":0.7,
-                                     "low":0.5,
-                                     "mid":0.3,
-                                     "high":0.3}
-        self.min_percent_diff = {"beat":70,
-                                 "low":100,
-                                 "mid":50,
-                                 "high":30}
         # Configurations for dynamic ui generation. Effect options can be changed by widgets created at runtime,
         # meaning that you don't need to worry about the user interface - it's all done for you. All you need to
         # do is add items to this dict below.
@@ -207,14 +177,6 @@ class Visualizer():
                                                  ["minute", "Minute to start fade", "slider", (0,59,1)],
                                                  ["minutes_fade", "How long to fade for", "slider", (0,60,1)]]
                                        }
-        # Setup for fps counter
-        self.frame_counter = 0
-        self.start_time = time.time()
-        # Setup for "Wave" (don't change these)
-        self.wave_wipe_count = 0
-        # Setup for "Power" (don't change these)
-        self.power_indexes = []
-        self.power_brightness = 0
         # Setup for multicolour modes (don't mess with this either unless you want to add in your own multicolour modes)
         # If there's a multicolour mode you would like to see, let me know on GitHub! 
 
@@ -287,62 +249,16 @@ class Visualizer():
         """
         return np.roll(self.multicolor_modes[name], offset, axis=1)
 
+    @property
+    def current_freq_detects(self):
+        """Beat / low / mid / high flags for this frame, from the strip's shared analyser"""
+        return self.board.signalProcessor.analyser.beats.detected
+
     def get_vis(self, y, audio_input):
-   
-
-        self.update_freq_channels(y)
-        self.detect_freqs()
-        currentEffect = self.board.config["current_effect"]
-        if self.effects[currentEffect].nonReactive:
-            self.prev_output = self.effects[self.board.config["current_effect"]].visualize(self.board, y)
-        elif audio_input:
-            #self.prev_output = self.effects[self.board.config["current_effect"]](self.effects[self.board.config["current_effect"]], self.board, y)
-
-            self.prev_output = self.effects[self.board.config["current_effect"]].visualize(self.board, y)
+        effect = self.effects[self.board.config["current_effect"]]
+        if effect.nonReactive or audio_input:
+            self.prev_output = effect.visualize(self.board, y)
         else:
+            # No music: let the last frame fade out
             self.prev_output = np.multiply(self.prev_output, 0.95)
-        
-        self.frame_counter += 1
-        elapsed = time.time() - self.start_time
-        if elapsed >= 1.0:
-            self.start_time = time.time()
-            fps = self.frame_counter//elapsed
-            latency = elapsed/self.frame_counter
-            self.frame_counter = 0
-
         return self.prev_output
-
-    def _split_equal(self, value, parts):
-        value = float(value)
-        return [int(round(i*value/parts)) for i in range(1,parts+1)]
-
-    def update_freq_channels(self, y):
-        for i in range(len(y)):
-            self.freq_channels[i].appendleft(y[i])
-
-    def detect_freqs(self):
-        """
-        Function that updates current_freq_detects. Any visualisation algorithm can check if
-        there is currently a beat, low, mid, or high by querying the self.current_freq_detects dict.
-        """
-        channel_avgs = []
-        differences = []
-        for i in range(self.board.config["N_FFT_BINS"]):
-            channel_avgs.append(sum(self.freq_channels[i])/len(self.freq_channels[i]))
-            # A bin that has been silent for the whole history averages to exactly 0
-            differences.append(((self.freq_channels[i][0]-channel_avgs[i])*100)//max(channel_avgs[i], 1e-6))
-        for i in ["beat", "low", "mid", "high"]:
-            if any(differences[j] >= self.min_percent_diff[i]\
-                   and self.freq_channels[j][0] >= self.min_detect_amplitude[i]\
-                            for j in range(*self.detection_ranges[i]))\
-                        and (time.time() - self.prev_freq_detects[i] > 0.2)\
-                        and len(self.freq_channels[0]) == self.freq_channel_history:
-                self.prev_freq_detects[i] = time.time()
-                self.current_freq_detects[i] = True
-                #print(i)
-            else:
-                self.current_freq_detects[i] = False    
-
-
-    
-
