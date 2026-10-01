@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
@@ -107,10 +106,6 @@ export class RoomView {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    // Ambient occlusion darkens corners and contact points so the room has depth
-    const ambientOcclusion = new GTAOPass(this.scene, this.camera);
-    ambientOcclusion.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.5, scale: 1.2 });
-    this.composer.addPass(ambientOcclusion);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.85, 0.45, 0.9);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
