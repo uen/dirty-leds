@@ -285,6 +285,14 @@ def set_audio(payload):
         _library.request(payload["source"][len("track:"):], first=True)
 
 
+@action("seek")
+def seek(payload):
+    position = float(payload["position"])
+    if not position >= 0:
+        return "Position must be 0 or more seconds"
+    _audio.seek(position)
+
+
 @action("save-profile")
 def save_profile(payload):
     name = str(payload["name"]).strip()[:40]

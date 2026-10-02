@@ -17,7 +17,8 @@ export function SoundPanel({ audio, run, frames }: { audio: State["audio"] | und
   return (
     <aside className="panel sound">
       <h2>Sound</h2>
-      {audio && <ShowMode analysis={audio.analysis} frames={frames} />}
+      {audio && <ShowMode analysis={audio.analysis} frames={frames}
+        onSeek={(position) => run("seek", { position })} />}
       <Spectrum frames={frames} />
       <Meters frames={frames} />
       <div className="cues">
@@ -69,13 +70,13 @@ function CueGroup({ title, sources, current, onPlay, empty }: CueGroupProps) {
 }
 
 /** Says whether the show is reacting live or following a pre-analysed map of the track */
-function ShowMode({ analysis, frames }: { analysis: Analysis; frames: FrameBus }) {
+function ShowMode({ analysis, frames, onSeek }: { analysis: Analysis; frames: FrameBus; onSeek: (position: number) => void }) {
   switch (analysis.status) {
     case "ready":
       return (
         <div className="show-mode" data-mode="ready">
           <p><strong>Pre-analysed.</strong> {analysis.tempo} bpm, {analysis.drops?.length ?? 0} drops. The show sees what's coming.</p>
-          <TrackMap analysis={analysis} frames={frames} />
+          <TrackMap analysis={analysis} frames={frames} onSeek={onSeek} />
           <Upcoming frames={frames} />
           <SectionGroove analysis={analysis} frames={frames} />
         </div>
@@ -113,19 +114,27 @@ function ShowMode({ analysis, frames }: { analysis: Analysis; frames: FrameBus }
   }
 }
 
-/** The track's sections coloured by energy, drops marked, with a playhead */
-function TrackMap({ analysis, frames }: { analysis: Analysis; frames: FrameBus }) {
+const SEEK_STEP_SECONDS = 5;
+
+/** The track's sections coloured by energy, drops marked, with a playhead.
+ * With onSeek, clicking it (or the arrow keys) moves through the track */
+function TrackMap({ analysis, frames, onSeek }: { analysis: Analysis; frames: FrameBus; onSeek?: (position: number) => void }) {
   const playhead = useRef<HTMLSpanElement>(null);
+  const slider = useRef<HTMLDivElement>(null);
+  const position = useRef(0);
   const duration = analysis.duration ?? 1;
 
-  useFrame(frames, ({ position }) => {
-    if (playhead.current && position !== null) {
-      playhead.current.style.left = `${Math.min(100, (100 * position) / duration)}%`;
+  useFrame(frames, ({ position: now }) => {
+    if (playhead.current && now !== null) {
+      position.current = now % duration;
+      playhead.current.style.left = `${Math.min(100, (100 * position.current) / duration)}%`;
+      slider.current?.setAttribute("aria-valuenow", String(Math.round(position.current)));
     }
   });
 
-  return (
-    <div className="track-map" role="img" aria-label="Sections of the track by energy, with drops marked">
+  const seek = (seconds: number) => onSeek?.(Math.max(0, Math.min(duration - 1, seconds)));
+  const marks = (
+    <>
       {analysis.sections?.map((section) => (
         <span key={section.start} className="track-section" data-tier={section.tier}
           style={{ left: `${(100 * section.start) / duration}%`, width: `${(100 * (section.end - section.start)) / duration}%` }} />
@@ -134,6 +143,35 @@ function TrackMap({ analysis, frames }: { analysis: Analysis; frames: FrameBus }
         <span key={drop} className="track-drop" style={{ left: `${(100 * drop) / duration}%` }} />
       ))}
       <span ref={playhead} className="track-playhead" />
+    </>
+  );
+
+  if (!onSeek) {
+    return <div className="track-map" role="img" aria-label="Sections of the track by energy, with drops marked">{marks}</div>;
+  }
+  return (
+    <div
+      ref={slider}
+      className="track-map"
+      data-seekable="true"
+      role="slider"
+      tabIndex={0}
+      aria-label="Position in the track. Sections by energy, drops marked"
+      aria-valuemin={0}
+      aria-valuemax={Math.round(duration)}
+      title="Click to jump here"
+      onClick={(event) => {
+        const box = event.currentTarget.getBoundingClientRect();
+        seek(((event.clientX - box.left) / box.width) * duration);
+      }}
+      onKeyDown={(event) => {
+        const step = { ArrowLeft: -SEEK_STEP_SECONDS, ArrowRight: SEEK_STEP_SECONDS }[event.key];
+        if (step === undefined) return;
+        event.preventDefault();
+        seek(position.current + step);
+      }}
+    >
+      {marks}
     </div>
   );
 }

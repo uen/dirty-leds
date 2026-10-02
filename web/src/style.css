@@ -349,6 +349,19 @@ input[type="checkbox"] {
   background: var(--raised);
 }
 
+.track-map[data-seekable="true"] {
+  cursor: pointer;
+}
+
+.track-map[data-seekable="true"]:hover {
+  outline: 1px solid var(--text);
+}
+
+.track-map[data-seekable="true"]:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
 .track-section {
   position: absolute;
   top: 0;

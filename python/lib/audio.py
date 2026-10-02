@@ -77,6 +77,7 @@ class AudioInput:
         # The track playing and how many frames of it have been played (it loops)
         self.track = None
         self.track_frame = 0
+        self._seek_to = None  # seconds to jump to in the playing track
         # The rolling analysis while the lookahead source runs (lib/lookahead.py)
         self.lookahead = None
 
@@ -86,6 +87,15 @@ class AudioInput:
             raise ValueError("Unknown audio source: {}".format(source))
         self.source = source
         self.error = None
+        self._seek_to = None
+        self._switch.set()
+
+    def seek(self, seconds):
+        """Jump to a point in the playing track"""
+        if self.track is None:
+            raise ValueError("Only a track can be moved through")
+        self._seek_to = max(0.0, float(seconds))
+        # Restarts the track's decoder from there, see _run_source
         self._switch.set()
 
     def run(self):
@@ -113,12 +123,14 @@ class AudioInput:
             self._run_lookahead()
         elif source.startswith("track:"):
             self.track = source[len("track:"):]
-            self.track_frame = 0
+            start, self._seek_to = self._seek_to or 0.0, None
+            self.track_frame = int(start * config.settings["configuration"]["FPS"])
             try:
-                self._run_command(self._file_decode_command(os.path.join(MUSIC_DIR, self.track)),
+                self._run_command(self._file_decode_command(os.path.join(MUSIC_DIR, self.track), start),
                                   play=os.environ.get("DIRTY_LEDS_MUTE") != "1", paced=True)
             finally:
-                self.track = None
+                if self._seek_to is None:
+                    self.track = None
         elif source.startswith("pipe:"):
             self._run_pipe(source[len("pipe:"):])
 
@@ -235,12 +247,13 @@ class AudioInput:
         return ["pw-record", "-P", "{ stream.capture.sink=true }",
                 "--format", "s16", "--rate", str(_rate()), "--channels", "1", "-"]
 
-    def _file_decode_command(self, path):
+    def _file_decode_command(self, path, start=0.0):
         if not shutil.which("ffmpeg"):
             raise RuntimeError("playing tracks needs ffmpeg")
-        # -stream_loop -1 repeats the file forever. Pacing is done by _run_command,
-        # ffmpeg's -re releases audio in bursts which makes the LEDs stutter
-        return ["ffmpeg", "-loglevel", "error", "-stream_loop", "-1", "-i", path,
+        # -stream_loop -1 repeats the file forever, from its start even after -ss.
+        # Pacing is done by _run_command, ffmpeg's -re releases audio in bursts
+        # which makes the LEDs stutter
+        return ["ffmpeg", "-loglevel", "error", "-ss", "{:.3f}".format(start), "-stream_loop", "-1", "-i", path,
                 "-f", "s16le", "-ac", "1", "-ar", str(_rate()), "-"]
 
     def _playback_command(self):
