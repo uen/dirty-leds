@@ -76,6 +76,8 @@ function ShowMode({ analysis, frames }: { analysis: Analysis; frames: FrameBus }
         <div className="show-mode" data-mode="ready">
           <p><strong>Pre-analysed.</strong> {analysis.tempo} bpm, {analysis.drops?.length ?? 0} drops. The show sees what's coming.</p>
           <TrackMap analysis={analysis} frames={frames} />
+          <Upcoming frames={frames} />
+          {analysis.groove?.reliable && <GroovePattern groove={analysis.groove} frames={frames} />}
         </div>
       );
     case "queued":
@@ -122,6 +124,50 @@ function TrackMap({ analysis, frames }: { analysis: Analysis; frames: FrameBus }
         <span key={drop} className="track-drop" style={{ left: `${(100 * drop) / duration}%` }} />
       ))}
       <span ref={playhead} className="track-playhead" />
+    </div>
+  );
+}
+
+const NEXT_NAMES = { calm: "Breakdown", groove: "Groove", peak: "Peak" } as const;
+
+/** Countdown to the next section of the track */
+function Upcoming({ frames }: { frames: FrameBus }) {
+  const text = useRef<HTMLParagraphElement>(null);
+  useFrame(frames, ({ upcoming }) => {
+    if (!text.current) return;
+    text.current.textContent = upcoming
+      ? `${upcoming.drop ? "Drop" : NEXT_NAMES[upcoming.tier]} in ${upcoming.in.toFixed(1)} s`
+      : "Last section";
+    text.current.dataset.soon = String(Boolean(upcoming && upcoming.drop && upcoming.in < 5));
+  });
+  return <p ref={text} className="upcoming" aria-live="off" />;
+}
+
+/** The song's repeating rhythm as 16 steps, the current one lit */
+function GroovePattern({ groove, frames }: { groove: NonNullable<Analysis["groove"]>; frames: FrameBus }) {
+  const dots = useRef<(HTMLSpanElement | null)[]>([]);
+  const lit = useRef(-1);
+  useFrame(frames, ({ step }) => {
+    if (step === lit.current) return;
+    dots.current[lit.current]?.classList.remove("step-on");
+    dots.current[step]?.classList.add("step-on");
+    lit.current = step;
+  });
+  return (
+    <div className="groove" title={`Repeating rhythm, ${Math.round(groove.strength * 100)}% consistent`}>
+      <span className="control-label">Groove</span>
+      <span className="groove-steps">
+        {groove.pattern.map((level, i) => (
+          <span
+            key={i}
+            ref={(el) => { dots.current[i] = el; }}
+            className="groove-step"
+            data-accent={groove.accents.includes(i)}
+            data-beat={i % 4 === 0}
+            style={{ opacity: 0.25 + 0.75 * level }}
+          />
+        ))}
+      </span>
     </div>
   );
 }

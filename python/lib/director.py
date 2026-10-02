@@ -20,47 +20,24 @@ MIN_BEATS_PER_LOOK = 8
 # except a jump up to peak, which cuts in straight away
 BEATS_TO_SETTLE = 2
 
-# A look is (main effect, its options), (supporting effect, its options).
-# Looks with the same effect on both put the whole room in unison
-# Only effects that move in a structured way (flowing, rolling, pulsing on the
-# beat); Sparkle and Power scatter random pixels, so the show leaves them out.
-# Some calm looks switch the supporting strips off, so drops light the room up
-LOOKS = {
-    "calm": [
-        (("Wavelength", {"roll_speed": 1}), ("Off", {})),
-        (("Spectrum", {"blur": 2.0}), ("Off", {})),
-        (("Wavelength", {"roll_speed": 1}), ("Spectrum", {"blur": 2.0})),
-        (("Spectrum", {"blur": 2.0}), ("Wavelength", {"roll_speed": 1})),
-        (("Scroll", {}), ("Wavelength", {})),
-        (("Wavelength", {"roll_speed": 1}), ("Wavelength", {"roll_speed": 1})),
-    ],
-    "groove": [
-        (("Scroll", {}), ("Wavelength", {})),
-        (("Spectrum", {}), ("Scroll", {})),
-        (("Bars", {"resolution": 6}), ("Wavelength", {})),
-        (("Reactive Runner", {}), ("Energy", {})),
-        (("Wavelength", {}), ("Ripple", {})),
-        (("Scroll", {}), ("Scroll", {})),
-        (("Spectrum", {}), ("Spectrum", {})),
-    ],
-    "peak": [
-        (("Pulse", {}), ("Ripple", {})),
-        (("Ripple", {"on_beat": True}), ("Pulse", {})),
-        (("Energy", {}), ("Ripple", {})),
-        (("Scroll", {}), ("Pulse", {})),
-        (("Scroll", {}), ("Ripple", {})),
-        (("Scroll", {}), ("Scroll", {})),
-        (("Ripple", {"on_beat": True}), ("Ripple", {"on_beat": True})),
-        (("Pulse", {}), ("Pulse", {})),
-    ],
+# Effects that suit each energy tier. The longest strip leads with one and
+# every other strip gets a different one, so the room is varied. Only effects
+# that move in a structured way (flowing, rolling, pulsing on the beat); Sparkle
+# and Power scatter random pixels, so the show leaves them out
+POOLS = {
+    "calm": ["Wavelength", "Spectrum", "Scroll"],
+    "groove": ["Scroll", "Spectrum", "Bars", "Reactive Runner", "Wavelength", "Ripple", "Energy"],
+    "peak": ["Pulse", "Ripple", "Energy", "Scroll", "Spectrum", "Bars"],
 }
-# The last bars before a known drop: everything together, tightening toward the hit
-BUILD_LOOKS = [
-    (("Scroll", {}), ("Scroll", {})),
-    (("Pulse", {}), ("Pulse", {})),
-    (("Scroll", {}), ("Pulse", {})),
-]
-BUILD_BEATS = 16
+# The last bars before a known drop: every strip together, tightening toward the hit
+BUILD_EFFECTS = ["Scroll", "Pulse"]
+BUILD_BEATS = 8
+# Unison is a moment, not the norm: the first bars after a drop, then the strips split up
+UNISON_AFTER_DROP_BEATS = 16
+# Chance that a groove or peak phrase puts every strip on one effect anyway
+UNISON_CHANCE = 0.15
+# Chance each supporting strip is switched off in a calm part, so drops light the room up
+CALM_OFF_CHANCE = 0.35
 
 PALETTES = {
     "calm": ["Ocean", "Sunset", "Peach", "Romantic"],
@@ -92,7 +69,8 @@ class Director:
         self.tier = "calm"
         self.candidate = None
         self.candidate_beats = 0
-        self.look = LOOKS["calm"][0]
+        # The lead effect, each strip's effect, and when a unison look splits up
+        self.look = {"lead": None, "strips": {}, "split_after": None}
         self.palette = PALETTES["calm"][0]
         self.beats_in_look = 0
         self.pending = None  # why the look should change on the next beat
@@ -136,6 +114,8 @@ class Director:
             self.pending = self.pending or "section"
         self.beats_in_look += features.beat
 
+        if self._split_unison(features):
+            return
         phrase_beats = 4 * self._phrase_bars()
         if self.pending is None and self.beats_in_look >= phrase_beats:
             self.pending = "phrase"
@@ -163,8 +143,18 @@ class Director:
             return
         self.level = 1.0
         self.beats_in_look += features.beat
+        if self._split_unison(features):
+            return
         if features.beat and self.beats_in_look >= 4 * self._phrase_bars():
             self._new_look("phrase", features)
+
+    def _split_unison(self, features):
+        """End a unison look after its bars: the lead keeps going, the others diverge"""
+        split_after = self.look["split_after"]
+        if split_after is not None and features.beat and self.beats_in_look >= split_after:
+            self._new_look("split", features)
+            return True
+        return False
 
     def _ramp_build(self, progress):
         """Speed up and tighten the build look as the drop gets closer"""
@@ -180,7 +170,7 @@ class Director:
         self.requested = True
         if not self.assignments:
             self._new_look("start", self.music.current)
-        return self.assignments.get(board.board) or self._assign(board, self._role(board), self.music.current)
+        return self.assignments.get(board.board) or self._assign(board, self.music.current)
 
     def _tier(self, intensity):
         current = TIERS.index(self.tier)
@@ -200,9 +190,26 @@ class Director:
         return 16
 
     def _new_look(self, reason, features):
-        pool = BUILD_LOOKS if reason == "build" else LOOKS[self.tier]
-        options = [look for look in pool if look != self.look] or pool
-        self.look = self.rng.choice(options)
+        ranked = [board.board for board in sorted(self.boards.values(), key=lambda b: -b.config["N_PIXELS"])]
+        previous_lead = self.look["lead"]
+        split_after = None
+        if reason == "build":
+            lead = self._pick(BUILD_EFFECTS, features, previous_lead)
+            strips = dict.fromkeys(ranked, lead)
+        elif reason == "split":
+            # Same lead effect for continuity, everyone else goes their own way
+            lead = previous_lead
+            strips = self._cast(lead, ranked, features)
+        else:
+            lead = self._pick(POOLS[self.tier], features, previous_lead)
+            unison = reason == "drop" or (self.tier != "calm" and self.rng.random() < UNISON_CHANCE)
+            if unison:
+                strips = dict.fromkeys(ranked, lead)
+                split_after = UNISON_AFTER_DROP_BEATS
+            else:
+                strips = self._cast(lead, ranked, features)
+        self.look = {"lead": lead, "strips": strips, "split_after": split_after}
+
         if reason in ("start", "drop", "energy", "section") or (reason == "phrase" and self.rng.random() < 0.5):
             palettes = [p for p in PALETTES[self.tier] if p != self.palette] or PALETTES[self.tier]
             self.palette = self.rng.choice(palettes)
@@ -211,25 +218,42 @@ class Director:
         self.beats_in_look = 0
         self.pending = None
         self.generation += 1
-        self.assignments = {name: self._assign(board, self._role(board), features) for name, board in self.boards.items()}
+        self.assignments = {name: self._assign(board, features) for name, board in self.boards.items()}
         if self.on_change:
             self.on_change()
 
-    def _role(self, board):
-        """Longest strip leads; the rest alternate between supporting and echoing the lead"""
-        ranked = sorted(self.boards.values(), key=lambda b: -b.config["N_PIXELS"])
-        names = [b.board for b in ranked]
-        index = names.index(board.board) if board.board in names else 0
-        return "main" if index % 2 == 0 else "support"
+    def _pick(self, pool, features, avoid):
+        """Choose an effect, favouring Scroll when the song has a strong repeating
+        rhythm (it plays the pattern back best) but not twice in a row"""
+        def weight(effect):
+            if effect == avoid:
+                return 0.1
+            if effect == "Scroll":
+                return 1.0 + 2.0 * features.groove_strength
+            return 1.0
+        return self.rng.choices(pool, weights=[weight(e) for e in pool])[0]
 
-    def _assign(self, board, role, features):
-        effect, look_options = self.look[0] if role == "main" else self.look[1]
+    def _cast(self, lead, ranked, features):
+        """The lead effect on the longest strip, a different effect on each of the others"""
+        others = [e for e in POOLS[self.tier] if e != lead]
+        self.rng.shuffle(others)
+        strips = {}
+        for i, name in enumerate(ranked):
+            if i == 0:
+                strips[name] = lead
+            elif self.tier == "calm" and self.rng.random() < CALM_OFF_CHANCE:
+                strips[name] = "Off"
+            else:
+                strips[name] = others[(i - 1) % len(others)] if others else lead
+        return strips
+
+    def _assign(self, board, features):
+        effect = self.look["strips"].get(board.board) or self.look["lead"]
         assignment = Assignment(effect, transition=self.transition)
         options = copy.deepcopy(board.effectConfig.get(assignment.config_key, {}))
         if "color_mode" in options:
             options["color_mode"] = self.palette
         options.update(self._tuned(effect, features))
-        options.update(look_options)
         assignment.options = options
         return assignment
 
@@ -242,13 +266,15 @@ class Director:
                     "trail": {"calm": 1.5, "groove": 1.0, "peak": 0.6}[self.tier],
                     "mirror": True, "blur": 0.8}
         if effect == "Ripple":
-            return {"beats": 2.0 if fast else 1.5, "width": 10.0 if peak else 7.0}
+            return {"beats": 2.0 if fast else 1.5, "width": 10.0 if peak else 7.0, "on_beat": peak}
         if effect == "Pulse":
             return {"sharpness": 3.0 if peak else 2.0, "colours": 4}
         if effect == "Sparkle":
             return {"fade": 0.2 if peak else 0.35}
         if effect == "Wavelength":
             return {"roll_speed": 0 if peak else 1, "mirror": True}
+        if effect == "Spectrum":
+            return {"blur": 2.0 if self.tier == "calm" else 1.0}
         if effect == "Bars":
             return {"roll_speed": 1, "mirror": True}
         return {}

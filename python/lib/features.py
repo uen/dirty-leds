@@ -24,6 +24,10 @@ beat_phase, tempo and section_change come from that analysis instead, and:
     until_drop          seconds until the next drop, while in the stretch
                         leading into one, otherwise None
     position            seconds into the track
+    groove_hit          True on an accent of the song's repeating rhythm
+    groove_strength     0-1, how strongly the song repeats one pattern
+    bar_step            0-15, sixteenth-note step of the bar, -1 when unknown
+    upcoming            the next section: {"tier", "in" (seconds), "drop"}
 
 Everything adapts to loudness, so the same song at any volume, or a quiet song
 next to a loud one, uses the full range. Time constants are in seconds.
@@ -286,6 +290,10 @@ class Features:
     tier: str = None
     until_drop: float = None
     position: float = None
+    groove_hit: bool = False
+    groove_strength: float = 0.0
+    bar_step: int = -1
+    upcoming: dict = None
 
 
 def _band(freqs, low, high):

@@ -39,6 +39,8 @@ class Broadcaster:
         self.meters = {}
         self.tempo = 0.0
         self.position = None
+        self.step = -1
+        self.upcoming = None
         # A running count rather than a flag, so the page can't miss a beat between events
         self.beats = 0
         self._changed = threading.Condition()
@@ -55,6 +57,8 @@ class Broadcaster:
         self.tempo = round(features.tempo, 1)
         # Seconds into a pre-analysed track, for the track map's playhead
         self.position = None if features.position is None else round(features.position, 2)
+        self.step = features.bar_step
+        self.upcoming = None if features.upcoming is None else dict(features.upcoming, **{"in": round(features.upcoming["in"], 1)})
         self.beats += features.beat
 
 
@@ -142,6 +146,8 @@ def make_handler(boards):
                             "tempo": broadcaster.tempo,
                             "beats": broadcaster.beats,
                             "position": broadcaster.position,
+                            "step": broadcaster.step,
+                            "upcoming": broadcaster.upcoming,
                         })))
                     self.wfile.flush()
                     time.sleep(1.0 / FRAME_RATE)

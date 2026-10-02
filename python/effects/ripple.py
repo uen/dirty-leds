@@ -18,7 +18,9 @@ class Ripple(Effect):
         features = board.features
         n = board.config["N_PIXELS"]
         half = n - n // 2
-        if features.kick_hit or (options["on_beat"] and features.beat):
+        # Follow the song's repeating rhythm when it is known, otherwise the kicks
+        hit = features.groove_hit if features.groove_strength else features.kick_hit
+        if hit or (options["on_beat"] and features.beat):
             # Bright sounds pick colours from further along the gradient
             gradient = board.visualizer.gradient(options["color_mode"])
             colour = gradient[:, int(features.brightness * (n - 1))]

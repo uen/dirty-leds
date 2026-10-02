@@ -45,6 +45,8 @@ export interface Analysis {
   tempo?: number;
   sections?: { start: number; end: number; tier: "calm" | "groove" | "peak" }[];
   drops?: number[];
+  /** The song's repeating rhythm: hit strength per sixteenth step of a bar */
+  groove?: { pattern: number[]; accents: number[]; strength: number; reliable: boolean };
 }
 
 export interface Furniture {
@@ -83,6 +85,10 @@ export interface Frame {
   beats: number;
   /** Seconds into a pre-analysed track, otherwise null */
   position: number | null;
+  /** Sixteenth-note step of the bar, -1 when unknown */
+  step: number;
+  /** The next section of a pre-analysed track */
+  upcoming: { tier: "calm" | "groove" | "peak"; in: number; drop: boolean } | null;
 }
 
 export async function action(name: string, payload: Record<string, unknown>): Promise<string | null> {
@@ -117,7 +123,7 @@ export function connect(handlers: {
     const leds: Record<string, Uint8Array> = {};
     for (const [name, encoded] of Object.entries<string>(data.leds)) leds[name] = decodeBase64(encoded);
     handlers.onFrame({ leds, spectrum: data.spectrum, meters: data.meters, tempo: data.tempo, beats: data.beats,
-      position: data.position });
+      position: data.position, step: data.step ?? -1, upcoming: data.upcoming ?? null });
   });
   return events;
 }

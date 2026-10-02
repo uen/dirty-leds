@@ -385,6 +385,51 @@ input[type="checkbox"] {
   box-shadow: 0 0 6px #fff;
 }
 
+.upcoming {
+  margin-top: 0.35rem;
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.upcoming[data-soon="true"] {
+  color: var(--amber);
+  font-weight: 600;
+}
+
+.groove {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.groove-steps {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 2px;
+}
+
+.groove-step {
+  height: 10px;
+  border-radius: 2px;
+  background: var(--text-dim);
+}
+
+.groove-step[data-beat="true"] {
+  margin-left: 2px;
+}
+
+.groove-step[data-accent="true"] {
+  background: var(--amber);
+}
+
+.groove-step.step-on {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
 .cue-tag {
   margin-left: 0.4rem;
   padding: 0 0.3rem;
