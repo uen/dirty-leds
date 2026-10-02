@@ -328,7 +328,7 @@ class Freestyle(Effect):
         field = _blend(_blend(self._base(features, dt), self._flow(features, dt)), self._hits(features, dt))
         # Each LED samples the field at its position
         index = np.clip((self.positions * (RESOLUTION - 1)).astype(int), 0, RESOLUTION - 1)
-        output = field[:, index] * self.dynamics(features, floor=0.6) * self.knobs["master"]
+        output = field[:, index] * self.dynamics(features, floor=0.4) * self.knobs["master"]
         saturation = self.knobs["saturation"]
         if saturation < 0.999:
             # Drain colour toward white at the same brightness

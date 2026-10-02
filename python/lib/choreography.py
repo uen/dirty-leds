@@ -26,6 +26,8 @@ from dataclasses import dataclass, field
 
 BAR = 4  # beats
 SCENE_BARS = 8
+# Below this activity a section has no real beat to hit on (ambient, drones, pads)
+SPARSE = 0.4
 DROP_BARS = 4
 MAX_BUILD_BARS = 8
 MIN_BUILD_BARS = 2
@@ -59,6 +61,7 @@ class Cue:
     support_effects: list = field(default_factory=list)  # fixed effects for the others, if any
     escalation: int = 0  # which drop this belongs to, 0 for the first
     final: bool = False
+    sparse: bool = False  # no real beat: slow evolving colour instead of hits
 
 
 def _bar_frames(beats, start_frame, end_frame):
@@ -122,8 +125,11 @@ def plan(analysis, style="mixed", seed=None):
             scene_end = scene_starts[k + 1] if k + 1 < len(scene_starts) else build_from
             if scene_end <= scene_start:
                 continue
-            cues.append(_scene_cue(scene_start, scene_end, section.tier, palette, support_palette, next_shape(),
-                                   k, style, rng, escalation if section.tier == "peak" else 0, final))
+            cue = _scene_cue(scene_start, scene_end, section.tier, palette, support_palette, next_shape(),
+                             k, style, rng, escalation if section.tier == "peak" else 0, final)
+            if section.activity < SPARSE:
+                _soften(cue)
+            cues.append(cue)
             if k % 2 == 1:
                 # Alternate the supporting palette between scenes too
                 support_palette = contrasting(section.tier, palette)
@@ -173,6 +179,16 @@ def _scene_cue(start, end, tier, palette, support_palette, shape, index, style, 
         support_effects = rng.sample(SUPPORT_EFFECTS[tier], k=min(3, len(SUPPORT_EFFECTS[tier])))
     return Cue(start, end, tier, tier, palette, support_palette, shape, lead, support, support_effects,
                escalation=escalation, final=final)
+
+
+def _soften(cue):
+    """Sparse, beatless music: slow flowing colour, no hits on a beat that isn't there"""
+    calm = {"hit_level": 0.0, "flow_beats": 6.0, "flow_trail": 2.5, "base_breathe": 0.8, "base_drift": 2.0}
+    cue.lead.update(calm, base_level=max(cue.lead.get("base_level", 0.2), 0.25))
+    cue.support.update(calm, base_level=0.18, master=0.8)
+    # Every strip on its own slowly evolving colour field rather than fixed effects
+    cue.support_effects = []
+    cue.sparse = True
 
 
 def _build_cue(start, end, palette):

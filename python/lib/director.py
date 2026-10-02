@@ -175,6 +175,10 @@ class Director:
         if cue.kind in ("peak", "groove", "calm") and features.beat and self.beats_in_look \
                 and self.beats_in_look % (4 * VARY_BARS) == 0:
             self.variation += 1
+            if cue.sparse:
+                # Without a beat to play with, the colours themselves change places
+                self.palette, self.support_palette = self.support_palette, self.palette
+                self.assignments = {name: self._assign(board, features) for name, board in self.boards.items()}
             if self.on_change:
                 self.on_change()
         # Fade to black over the last beat and a half before the drop, so it lands out of darkness
@@ -192,7 +196,7 @@ class Director:
             else:
                 strips[name] = cue.support_effects[(i - 1) % len(cue.support_effects)]
         self.look = {"lead": "Freestyle", "strips": strips, "split_after": None,
-                     "signature": "{} {} {}".format(cue.kind, cue.shape, "/".join(sorted(set(strips.values()))))}
+                     "signature": "{} {} {} {}".format(cue.kind, cue.shape, cue.palette, "/".join(sorted(set(strips.values()))))}
         self.palette, self.support_palette = cue.palette, cue.support_palette
         self.freestyle_shape = cue.shape
         # Straight in on a drop, otherwise crossfade over a beat

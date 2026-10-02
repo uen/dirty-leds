@@ -8,8 +8,10 @@ lands. For a file the whole song can be analysed up front instead:
                 exactly when the music does
     beats       a beat grid from dynamic programming over the whole song's
                 onsets, which follows small tempo drifts
-    sections    calm / groove / peak parts, boundaries snapped to beats, drops
-                pinned to the hit where the bass comes in
+    sections    where the music changes character (self-similarity novelty
+                over beats) or energy, each rated calm / groove / peak from its
+                energy; boundaries snapped to beats, drops pinned to the hit
+                where the bass comes in
     groove      the repeating rhythm of each section: hits averaged over its bars
                 at sixteenth-note steps, so effects can play the pattern back
 
@@ -32,10 +34,10 @@ from scipy.ndimage import gaussian_filter1d
 
 import config
 from lib.audio import MUSIC_DIR, list_tracks
-from lib.features import (BASS, INTENSITY_BASS, PREFERRED_TEMPO, SILENCE_DBFS, TEMPO_RANGE, WINDOW,
-                          _band)
+from lib.features import (BASS, BINS_RANGE, INTENSITY_BASS, N_BINS, PREFERRED_TEMPO, SILENCE_DBFS, TEMPO_RANGE,
+                          WINDOW, _band, _log_filterbank)
 
-ANALYSIS_VERSION = 3
+ANALYSIS_VERSION = 5
 CACHE_DIR = os.path.join(MUSIC_DIR, ".analysis")
 TIERS = ("calm", "groove", "peak")
 TIER_START = (0.35, 0.72)
@@ -54,6 +56,9 @@ class Section:
     start: int  # frame
     end: int
     tier: str
+    # 0-1, how much is being hit (onset activity on an absolute scale): sparse or
+    # beatless music is low, dense dance music high
+    activity: float = 1.0
 
 
 @dataclass
@@ -148,6 +153,7 @@ class TrackAnalysis:
             "duration": self.frames / self.fps,
             "tempo": round(self.tempo, 1),
             "sections": [{"start": s.start / self.fps, "end": s.end / self.fps, "tier": s.tier,
+                          "activity": round(s.activity, 2),
                           "groove": None if self.groove.at_section(i) is None else self.groove.at_section(i).to_dict()}
                          for i, s in enumerate(self.sections)],
             "drops": [d / self.fps for d in self.drops],
@@ -156,7 +162,7 @@ class TrackAnalysis:
 
     def save(self, path):
         np.savez_compressed(path, intensity=self.intensity, beats=self.beat_frames,
-                            sections=np.array([[s.start, s.end, TIERS.index(s.tier)] for s in self.sections]),
+                            sections=np.array([[s.start, s.end, TIERS.index(s.tier), s.activity] for s in self.sections]),
                             groove_hits=self.groove.hits, groove_steps=self.groove.steps,
                             meta=json.dumps({"fps": self.fps, "tempo": self.tempo,
                                              "groove_song": self.groove.song.to_dict(),
@@ -167,7 +173,7 @@ class TrackAnalysis:
     def load(cls, path):
         data = np.load(path)
         meta = json.loads(str(data["meta"]))
-        sections = [Section(int(a), int(b), TIERS[int(t)]) for a, b, t in data["sections"]]
+        sections = [Section(int(a), int(b), TIERS[int(t)], float(activity)) for a, b, t, activity in data["sections"]]
         def pattern(d):
             return None if d is None else Pattern(d["pattern"], d["accents"], d["strength"])
         groove = Groove(pattern(meta["groove_song"]), [pattern(d) for d in meta["groove_sections"]],
@@ -192,6 +198,8 @@ def analyse_file(path, progress=lambda fraction: None):
     freqs = np.fft.rfftfreq(WINDOW, 1.0 / rate)
     intensity_band, audible, kick_band = _band(freqs, *INTENSITY_BASS), _band(freqs, 100, 14000), _band(freqs, *SUB)
     window = np.hanning(WINDOW)
+    filterbank = _log_filterbank(freqs, N_BINS, *BINS_RANGE)
+    bins_db = np.zeros((frames, N_BINS))
     total_db, bass_db, flux, kick_flux = np.zeros(frames), np.zeros(frames), np.zeros(frames), np.zeros(frames)
     previous = previous_kick = None
     for start in range(0, frames, 2000):
@@ -201,6 +209,7 @@ def analyse_file(path, progress=lambda fraction: None):
         power = spectrum ** 2
         total_db[idx] = 10 * np.log10(power.sum(axis=1) + 1e-12)
         bass_db[idx] = 10 * np.log10(power[:, intensity_band].sum(axis=1) + 1e-12)
+        bins_db[idx] = 10 * np.log10(power @ filterbank.T + 1e-12)
         compressed = np.log1p(100 * spectrum[:, audible])
         before = np.vstack(([compressed[0]] if previous is None else [previous], compressed[:-1]))
         flux[idx] = np.maximum(compressed - before, 0).mean(axis=1)
@@ -217,8 +226,9 @@ def analyse_file(path, progress=lambda fraction: None):
 
     beats, tempo = _track_beats(flux, kick_flux, fps)
     progress(0.75)
-    intensity = _intensity(bass_db - total_db, loudness, silent, fps)
-    sections = _sections(intensity, bass_db - total_db, beats, tempo, fps)
+    parts = _energy_parts(bass_db - total_db, loudness, flux, silent, fps)
+    intensity = np.where(silent, 0.0, gaussian_filter1d(_energy(*parts), 0.15 * fps, mode="nearest"))
+    sections = _sections(intensity, parts[3], bins_db, loudness, flux, bass_db - total_db, beats, tempo, fps)
     groove = _groove(_onset_strength(flux, fps), beats, sections, frames)
     progress(0.95)
     return TrackAnalysis(fps, intensity.astype(np.float32), beats, sections, tempo, groove)
@@ -233,14 +243,27 @@ def _normalise(values, mask, min_range):
     return np.clip((values - low) / (high - low), 0, 1)
 
 
-def _intensity(bass_share, loudness, silent, fps):
-    """Same recipe as the live intensity, but judged against the whole song and
-    smoothed with the future as well as the past, so it has no lag"""
+def _energy_parts(bass_share, loudness, flux, silent, fps):
+    """How big the music is, in parts: three judged against the song itself (so
+    every song has highs and lows) and one absolute (how much is being hit)"""
     audible = ~silent
-    bass = _normalise(gaussian_filter1d(bass_share, 0.4 * fps, mode="nearest"), audible, 12.0)
-    loud = _normalise(gaussian_filter1d(loudness, 0.4 * fps, mode="nearest"), audible, 6.0)
-    intensity = np.where(silent, 0.0, 0.7 * bass + 0.3 * loud)
-    return gaussian_filter1d(intensity, 0.15 * fps, mode="nearest")
+
+    def smooth(values, seconds):
+        return gaussian_filter1d(values, seconds * fps, mode="nearest")
+
+    bass_relative = _normalise(smooth(bass_share, 0.4), audible, 12.0)
+    loud_relative = _normalise(smooth(loudness, 0.4), audible, 6.0)
+    flux_relative = _normalise(np.log(smooth(flux, 0.5) + 1e-4), audible, 0.7)
+    # Onset activity on an absolute scale: 0.005 is barely anything (ambient), 0.1 is
+    # a dense dance track. Bass share alone can't tell a drone from a drop
+    flux_absolute = np.clip(np.log(smooth(flux, 1.0) / 0.005 + 1e-9) / np.log(0.1 / 0.005), 0, 1)
+    return bass_relative, loud_relative, flux_relative, flux_absolute
+
+
+def _energy(bass_relative, loud_relative, flux_relative, flux_absolute):
+    relative = 0.45 * bass_relative + 0.3 * loud_relative + 0.25 * flux_relative
+    # Quiet, sparse music can't reach the top however much it varies
+    return relative * (0.55 + 0.45 * flux_absolute)
 
 
 def _onset_strength(flux, fps):
@@ -299,49 +322,96 @@ def _track_beats(flux, kick_flux, fps):
     return np.array(beats[::-1]), tempo
 
 
-def _sections(intensity, bass_share, beats, tempo, fps):
-    tier = np.digitize(intensity, TIER_START)
-    # Runs of the same tier
-    edges = np.flatnonzero(np.diff(tier)) + 1
-    starts = np.concatenate(([0], edges))
-    ends = np.concatenate((edges, [len(tier)]))
-    runs = [[int(a), int(b), int(tier[a])] for a, b in zip(starts, ends)]
-
-    # Merge runs that are too short to be a section into the neighbour closest in intensity
-    min_frames = MIN_SECTION_BEATS * 60 * fps / tempo
-    while len(runs) > 1:
-        lengths = [b - a for a, b, _ in runs]
-        i = int(np.argmin(lengths))
-        if lengths[i] >= min_frames:
+def _novelty_boundaries(bins_db, loudness, flux, beats, half_width=16):
+    """Beats where the music changes character (Foote 2000): each beat is described
+    by its spectrum, loudness and hits, every beat is compared with every other, and
+    a checkerboard kernel slid along the diagonal peaks where the past and future
+    sound unlike each other"""
+    count = len(beats) - 1
+    if count < 4 * half_width:
+        return []
+    features = np.array([np.concatenate((bins_db[a:b].mean(axis=0), [loudness[a:b].mean(), np.log(flux[a:b].mean() + 1e-4)]))
+                         for a, b in zip(beats[:-1], beats[1:])])
+    features = (features - features.mean(axis=0)) / (features.std(axis=0) + 1e-9)
+    features = (features[:-1] + features[1:]) / 2  # smooth over two beats
+    unit = features / (np.linalg.norm(features, axis=1, keepdims=True) + 1e-9)
+    similarity = unit @ unit.T
+    offsets = np.arange(-half_width, half_width)
+    taper = np.exp(-0.5 * ((offsets + 0.5) / (half_width / 2)) ** 2)
+    kernel = np.outer(np.sign(offsets + 0.5), np.sign(offsets + 0.5)) * np.outer(taper, taper)
+    novelty = np.zeros(len(similarity))
+    for i in range(half_width, len(similarity) - half_width):
+        novelty[i] = np.sum(similarity[i - half_width:i + half_width, i - half_width:i + half_width] * kernel)
+    novelty = np.maximum(-novelty, 0)  # high where past and future differ
+    threshold = novelty.mean() + 1.25 * novelty.std()
+    peaks = []
+    for i in np.argsort(-novelty):
+        if novelty[i] < threshold:
             break
-        mean = intensity[runs[i][0]:runs[i][1]].mean()
-        neighbours = [j for j in (i - 1, i + 1) if 0 <= j < len(runs)]
-        j = min(neighbours, key=lambda k: abs(intensity[runs[k][0]:runs[k][1]].mean() - mean))
-        a, b = min(runs[i][0], runs[j][0]), max(runs[i][1], runs[j][1])
-        keep = runs[j][2] if runs[j][1] - runs[j][0] >= runs[i][1] - runs[i][0] else runs[i][2]
-        runs[min(i, j)] = [a, b, keep]
-        del runs[max(i, j)]
-        # Neighbours with the same tier become one section
-        merged = [runs[0]]
-        for run in runs[1:]:
-            if run[2] == merged[-1][2]:
-                merged[-1][1] = run[1]
-            else:
-                merged.append(run)
-        runs = merged
+        if all(abs(i - j) >= half_width for j in peaks):
+            peaks.append(int(i))
+    top = novelty.max() + 1e-9
+    return [(float(novelty[i] / top), int(beats[i + 1])) for i in peaks]
 
-    # Move each boundary onto a beat; when the energy rises, onto the hit where the bass comes in
+
+def _sections(intensity, flux_absolute, bins_db, loudness, flux, bass_share, beats, tempo, fps):
+    frames = len(intensity)
+    beat_frames = 60 * fps / tempo
+    min_frames = MIN_SECTION_BEATS * beat_frames
+
+    # Candidate boundaries: where the energy jumps (strongest first) and where the
+    # music changes character. Jumps win when two are too close, since a drop
+    # matters more than a change of timbre
+    span = int(8 * beat_frames)
+    smooth = gaussian_filter1d(intensity, fps, mode="nearest")
+    candidates = []
+    for b in beats[::2]:
+        if span <= b < frames - span:
+            change = smooth[b:b + span].mean() - smooth[b - span:b].mean()
+            if abs(change) >= 0.25:
+                candidates.append((2.0 + abs(change), int(b)))
+    candidates += [(1.0 + strength, b) for strength, b in _novelty_boundaries(bins_db, loudness, flux, beats)]
+    # Every clear energy jump is kept; changes of character only up to about one
+    # section per 15 seconds overall, strongest first
+    limit = max(1, int(frames / fps / 15))
+    kept = []
+    for priority, b in sorted(candidates, reverse=True):
+        if priority < 2.0 and len(kept) >= limit:
+            break
+        if min_frames / 2 <= b <= frames - min_frames / 2 and all(abs(b - k) >= min_frames for k in kept):
+            kept.append(b)
+    edges = [0] + sorted(kept) + [frames]
+
+    energy = [float(intensity[a:b].mean()) for a, b in zip(edges[:-1], edges[1:])]
+    activity = [float(flux_absolute[a:b].mean()) for a, b in zip(edges[:-1], edges[1:])]
+    tiers = [int(np.digitize(e, TIER_START)) for e in energy]
+    # Energetic songs always get their peak moments; sparse music never peaks
+    top = max(energy)
+    if 2 not in tiers and top >= 0.45:
+        tiers = [2 if e >= top - 0.08 and a >= 0.4 else t for e, a, t in zip(energy, activity, tiers)]
+    tiers = [1 if t == 2 and a < 0.4 else t for t, a in zip(tiers, activity)]
+    # Peaks are the high points: at most about half the song, the most energetic parts
+    lengths = [b - a for a, b in zip(edges[:-1], edges[1:])]
+    while sum(l for l, t in zip(lengths, tiers) if t == 2) > 0.55 * frames and tiers.count(2) > 1:
+        weakest = min((e, i) for i, (e, t) in enumerate(zip(energy, tiers)) if t == 2)[1]
+        tiers[weakest] = 1
+    # Calm parts only where the song really has contrast
+    if 0 not in tiers and top - min(energy) >= 0.2:
+        tiers = [0 if e <= min(energy) + 0.05 else t for e, t in zip(energy, tiers)]
+    runs = [[a, b, t] for a, b, t in zip(edges[:-1], edges[1:], tiers)]
+
+    # Move rising boundaries onto the hit where the bass comes in, all onto beats
     rise = np.diff(gaussian_filter1d(bass_share, 0.05 * fps, mode="nearest"), prepend=bass_share[0])
     for k in range(1, len(runs)):
         boundary = runs[k][0]
         if runs[k][2] > runs[k - 1][2]:
-            window = np.arange(max(0, boundary - fps), min(len(rise), boundary + fps))
+            window = np.arange(max(0, boundary - 2 * fps), min(len(rise), boundary + 2 * fps))
             boundary = int(window[np.argmax(rise[window])])
         if len(beats):
             boundary = int(beats[np.argmin(np.abs(beats - boundary))])
         boundary = min(max(boundary, runs[k - 1][0] + 1), runs[k][1] - 1)
         runs[k - 1][1] = runs[k][0] = boundary
-    return [Section(a, b, TIERS[t]) for a, b, t in runs]
+    return [Section(a, b, TIERS[t], float(flux_absolute[a:b].mean())) for a, b, t in runs]
 
 
 def _pattern(bars):

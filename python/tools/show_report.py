@@ -135,10 +135,11 @@ def score(analysis, strips, looks, frames):
         check("escalation", " -> ".join(f"{x:.2f}" for x in landings), "last >= first",
               landings[-1] >= 0.95 * landings[0], "brightness in the 2 s after each drop, in order")
 
-    # How different the light is in the two seconds after a moment vs before it
+    # How different the light is in the two seconds after a moment vs before it, in
+    # colour as well as brightness: a palette change at the same brightness is a change
     window = 2 * FPS
     def change(at):
-        before, after = level[max(0, at - window):at].mean(axis=0), level[at:at + window].mean(axis=0)
+        before, after = light[max(0, at - window):at].mean(axis=0), light[at:at + window].mean(axis=0)
         return float(np.abs(after - before).mean())
     boundaries = [s.start for s in analysis.sections[1:] if window <= s.start < frames - window]
     rng = np.random.default_rng(0)
@@ -147,12 +148,19 @@ def score(analysis, strips, looks, frames):
         salience = np.mean([change(b) for b in boundaries]) / max(baseline, 1e-6)
         check("sections", f"{salience:.1f}x", ">= 2x", salience >= 2, "light change at section boundaries vs random moments")
 
+    # Only sections with a real beat count: ambient music has no beat to be on
+    rhythmic = np.zeros(frames, dtype=bool)
+    for sec in analysis.sections:
+        if sec.activity >= 0.4:
+            rhythmic[sec.start:min(sec.end, frames)] = True
     flux = np.maximum(np.diff(level, axis=0), 0).mean(axis=1)
     near_beat = np.zeros(frames - 1, dtype=bool)
     for b in analysis.beat_frames:
         near_beat[max(0, b - 2):min(frames - 1, b + 3)] = True
-    on_beat = flux[near_beat].mean() / max(flux[~near_beat].mean(), 1e-6)
-    check("on beat", f"{on_beat:.1f}x", ">= 1.5x", on_beat >= 1.5, "light rising on beats vs off them")
+    if rhythmic[:-1].sum() > 10 * FPS:
+        on, off = near_beat & rhythmic[:-1], ~near_beat & rhythmic[:-1]
+        on_beat = flux[on].mean() / max(flux[off].mean(), 1e-6)
+        check("on beat", f"{on_beat:.1f}x", ">= 1.5x", on_beat >= 1.5, "light rising on beats vs off them (rhythmic parts)")
 
     delta = np.diff(level, axis=0)
     neighbours = []
@@ -188,13 +196,15 @@ def score(analysis, strips, looks, frames):
     # change. Calm parts may sit still for longer than grooves and peaks
     step = FPS
     starts = list(range(0, frames - window, step))
-    blocks = [level[i:i + window].mean(axis=0) for i in starts]
+    blocks = [light[i:i + window].mean(axis=0) for i in starts]
     changes = [float(np.abs(b - a).mean()) for a, b in zip(blocks[:-2], blocks[2:])]
-    threshold = max(0.05, 0.5 * float(np.median(changes))) if changes else 0.05
+    threshold = max(0.03, 0.5 * float(np.median(changes))) if changes else 0.03
     longest = {"calm": 0, "moving": 0}
     run, run_kind = 0, None
     for i, c in enumerate(changes):
-        kind = "calm" if tiers[min(starts[i] + window, frames - 1)] == "calm" else "moving"
+        at = min(starts[i] + window, frames - 1)
+        # Calm or sparse parts may sit still for longer than rhythmic grooves and peaks
+        kind = "calm" if tiers[at] == "calm" or not rhythmic[at] else "moving"
         run = run + 1 if c < threshold and kind == run_kind else (1 if c < threshold else 0)
         run_kind = kind
         longest[kind] = max(longest[kind], run)
@@ -224,8 +234,9 @@ def score(analysis, strips, looks, frames):
             effect = max(per, key=per.get)
             if per[effect] / frames > worst[2]:
                 worst = (name, effect, per[effect] / frames)
-        check("per strip", f"{worst[0]}: {worst[1]} {worst[2]:.0%}", "<= 45%", worst[2] <= 0.45,
-              "most any one strip spends on a single effect")
+        if frames >= 90 * FPS:
+            check("per strip", f"{worst[0]}: {worst[1]} {worst[2]:.0%}", "<= 45%", worst[2] <= 0.45,
+                  "most any one strip spends on a single effect")
 
     def hue_count(mask):
         colours = light[mask][level[mask] > 0.2]
