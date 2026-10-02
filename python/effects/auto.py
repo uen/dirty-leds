@@ -33,7 +33,7 @@ class Auto(Effect):
             self.blend_left -= 1
         else:
             self.previous = None
-        return output * board.show.level
+        return output * board.show.brightness
 
     @staticmethod
     def _render(board, assignment, effect, y):

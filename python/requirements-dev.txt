@@ -3,3 +3,5 @@
 watchfiles
 # Sampling profiler for the running app (see README)
 py-spy
+# Show reports (tools/show_report.py)
+matplotlib

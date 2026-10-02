@@ -24,11 +24,18 @@ BEATS_TO_SETTLE = 2
 # every other strip gets a different one, so the room is varied. Only effects
 # that move in a structured way (flowing, rolling, pulsing on the beat); Sparkle
 # and Power scatter random pixels, so the show leaves them out
+# Each tier has its own visual language: calm is soft and slow, grooves move,
+# peaks are bold and hit on the beat
 POOLS = {
-    "calm": ["Wavelength", "Spectrum", "Scroll"],
+    "calm": ["Wavelength", "Spectrum"],
     "groove": ["Scroll", "Spectrum", "Bars", "Reactive Runner", "Wavelength", "Ripple", "Energy"],
-    "peak": ["Pulse", "Ripple", "Energy", "Scroll", "Spectrum", "Bars"],
+    "peak": ["Pulse", "Ripple", "Energy", "Scroll", "Bars"],
 }
+# Overall brightness of the show per tier, on top of each effect's own dynamics,
+# so drops are clearly the brightest moments and calm parts sit back
+TIER_LEVEL = {"calm": 0.55, "groove": 0.8, "peak": 1.0}
+# A drop opens with an effect that fills the strips, not a sparse one
+DROP_EFFECTS = ["Pulse", "Scroll", "Energy"]
 # The last bars before a known drop: every strip together, tightening toward the hit
 BUILD_EFFECTS = ["Scroll", "Pulse"]
 BUILD_BEATS = 8
@@ -39,11 +46,17 @@ UNISON_CHANCE = 0.15
 # Chance each supporting strip is switched off in a calm part, so drops light the room up
 CALM_OFF_CHANCE = 0.35
 
+# Peaks only get palettes with several distinct hues; near single-colour ones
+# turned a whole drop into one wash
 PALETTES = {
     "calm": ["Ocean", "Sunset", "Peach", "Romantic"],
     "groove": ["Sunny", "Fruity", "Jungle", "Ocean", "Dancefloor", "Peach"],
-    "peak": ["Dancefloor", "Spectral", "Sexy", "Rust", "Fruity"],
+    "peak": ["Dancefloor", "Spectral", "Sunny", "Fruity", "Jungle"],
 }
+# A smaller change every this many bars within a look, so long sections don't go stale
+VARY_BARS = 4
+# How much an effect's recent use counts against picking it again, decaying each look
+USAGE_DECAY = 0.6
 # Effects whose options live under a different key in effect_opts
 CONFIG_KEYS = {"Reactive Runner": "RunnerReactive"}
 
@@ -72,6 +85,9 @@ class Director:
         # The lead effect, each strip's effect, and when a unison look splits up
         self.look = {"lead": None, "strips": {}, "split_after": None}
         self.palette = PALETTES["calm"][0]
+        self.support_palette = PALETTES["calm"][1]
+        self.mirror = True
+        self.usage = {}
         self.beats_in_look = 0
         self.pending = None  # why the look should change on the next beat
         self.transition = 0.5
@@ -83,6 +99,12 @@ class Director:
         # Set when any strip asked for an assignment since the last update
         self.requested = False
         self.rng = random.Random()
+
+    @property
+    def brightness(self):
+        """What the auto show multiplies every strip by: the tier's level, and the
+        blackout before a drop"""
+        return self.level * TIER_LEVEL[self.tier]
 
     def active(self):
         return self.requested or any(board.config["current_effect"] == "Auto" for board in self.boards.values())
@@ -119,6 +141,9 @@ class Director:
         phrase_beats = 4 * self._phrase_bars()
         if self.pending is None and self.beats_in_look >= phrase_beats:
             self.pending = "phrase"
+        elif self.pending is None and features.beat and self.beats_in_look \
+                and self.beats_in_look % (4 * VARY_BARS) == 0 and self.look["split_after"] is None:
+            self._vary(features)
         if self.pending and features.beat and (self.beats_in_look >= MIN_BEATS_PER_LOOK or self.pending == "drop"):
             self._new_look(self.pending, features)
 
@@ -145,8 +170,35 @@ class Director:
         self.beats_in_look += features.beat
         if self._split_unison(features):
             return
-        if features.beat and self.beats_in_look >= 4 * self._phrase_bars():
+        self._phrase(features)
+
+    def _phrase(self, features):
+        """A new look every phrase, a variation every VARY_BARS within it"""
+        if not features.beat or not self.beats_in_look:
+            return
+        if self.beats_in_look >= 4 * self._phrase_bars():
             self._new_look("phrase", features)
+        elif self.beats_in_look % (4 * VARY_BARS) == 0 and self.look["split_after"] is None:
+            self._vary(features)
+
+    def _vary(self, features):
+        """Supporting strips swap effects with each other, or change palette and
+        direction; the lead keeps going so it doesn't restart"""
+        strips = self.look["strips"]
+        supports = [name for name in self._ranked()[1:] if strips.get(name) not in (None, "Off")]
+        effects = [strips[name] for name in supports]
+        if len(set(effects)) > 1:
+            for name, effect in zip(supports, effects[1:] + effects[:1]):
+                strips[name] = effect
+        else:
+            others = [p for p in PALETTES[self.tier] if p not in (self.palette, self.support_palette)]
+            self.support_palette = self.rng.choice(others or PALETTES[self.tier])
+        self.mirror = not self.mirror
+        self.transition = 60.0 / max(features.tempo, 60)
+        for name in supports:
+            self.assignments[name] = self._assign(self.boards[name], features)
+        if self.on_change:
+            self.on_change()
 
     def _split_unison(self, features):
         """End a unison look after its bars: the lead keeps going, the others diverge"""
@@ -189,8 +241,12 @@ class Director:
                 return board.effectConfig["Auto"]["bars"]
         return 16
 
+    def _ranked(self):
+        """Strip names, longest first"""
+        return [board.board for board in sorted(self.boards.values(), key=lambda b: -b.config["N_PIXELS"])]
+
     def _new_look(self, reason, features):
-        ranked = [board.board for board in sorted(self.boards.values(), key=lambda b: -b.config["N_PIXELS"])]
+        ranked = self._ranked()
         previous_lead = self.look["lead"]
         split_after = None
         if reason == "build":
@@ -201,7 +257,7 @@ class Director:
             lead = previous_lead
             strips = self._cast(lead, ranked, features)
         else:
-            lead = self._pick(POOLS[self.tier], features, previous_lead)
+            lead = self._pick(DROP_EFFECTS if reason == "drop" else POOLS[self.tier], features, previous_lead)
             unison = reason == "drop" or (self.tier != "calm" and self.rng.random() < UNISON_CHANCE)
             if unison:
                 strips = dict.fromkeys(ranked, lead)
@@ -209,10 +265,18 @@ class Director:
             else:
                 strips = self._cast(lead, ranked, features)
         self.look = {"lead": lead, "strips": strips, "split_after": split_after}
+        for effect in self.usage:
+            self.usage[effect] *= USAGE_DECAY
+        for effect in strips.values():
+            self.usage[effect] = self.usage.get(effect, 0.0) + 1.0 / len(strips)
+        self.mirror = self.rng.random() < 0.6
 
         if reason in ("start", "drop", "energy", "section") or (reason == "phrase" and self.rng.random() < 0.5):
             palettes = [p for p in PALETTES[self.tier] if p != self.palette] or PALETTES[self.tier]
             self.palette = self.rng.choice(palettes)
+        if reason != "build":
+            others = [p for p in PALETTES[self.tier] if p != self.palette] or PALETTES[self.tier]
+            self.support_palette = self.rng.choice(others)
         # Cut straight in on a drop for impact, otherwise crossfade over a beat
         self.transition = 0.0 if reason == "drop" else 60.0 / max(features.tempo, 60)
         self.beats_in_look = 0
@@ -228,9 +292,9 @@ class Director:
         def weight(effect):
             if effect == avoid:
                 return 0.1
-            if effect == "Scroll":
-                return 1.0 + 2.0 * features.groove_strength
-            return 1.0
+            base = 1.0 + 2.0 * features.groove_strength if effect == "Scroll" else 1.0
+            # Effects used a lot lately are less likely, so no one effect takes over
+            return base / (1.0 + 2.0 * self.usage.get(effect, 0.0))
         return self.rng.choices(pool, weights=[weight(e) for e in pool])[0]
 
     def _cast(self, lead, ranked, features):
@@ -252,7 +316,8 @@ class Director:
         assignment = Assignment(effect, transition=self.transition)
         options = copy.deepcopy(board.effectConfig.get(assignment.config_key, {}))
         if "color_mode" in options:
-            options["color_mode"] = self.palette
+            leads = board.board == self._ranked()[0] or effect == self.look["lead"]
+            options["color_mode"] = self.palette if leads else self.support_palette
         options.update(self._tuned(effect, features))
         assignment.options = options
         return assignment
@@ -264,7 +329,7 @@ class Director:
         if effect == "Scroll":
             return {"speed": {"calm": 2, "groove": 3, "peak": 5}[self.tier] + (1 if fast else 0),
                     "trail": {"calm": 1.5, "groove": 1.0, "peak": 0.6}[self.tier],
-                    "mirror": True, "blur": 0.8}
+                    "mirror": self.mirror, "blur": 0.8}
         if effect == "Ripple":
             return {"beats": 2.0 if fast else 1.5, "width": 10.0 if peak else 7.0, "on_beat": peak}
         if effect == "Pulse":
@@ -272,9 +337,9 @@ class Director:
         if effect == "Sparkle":
             return {"fade": 0.2 if peak else 0.35}
         if effect == "Wavelength":
-            return {"roll_speed": 0 if peak else 1, "mirror": True}
+            return {"roll_speed": 0 if peak else 1, "mirror": self.mirror}
         if effect == "Spectrum":
             return {"blur": 2.0 if self.tier == "calm" else 1.0}
         if effect == "Bars":
-            return {"roll_speed": 1, "mirror": True}
+            return {"roll_speed": 1, "mirror": self.mirror}
         return {}

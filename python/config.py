@@ -49,7 +49,7 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                    "spark_color": "White",
                                                    "density": 0.06,                 # Share of the strip lit per hit, at full intensity
                                                    "fade": 0.25},                   # Seconds for a sparkle to fade
-                                     "Auto":      {"bars": 16},                     # Bars before a new look, unless the song changes first
+                                     "Auto":      {"bars": 8},                      # Bars before a new look, unless the song changes first
                                      "Bars":      {"resolution":4,                  # Number of "bars"
                                                    "color_mode":"Spectral",         # Multicolour mode to use
                                                    "roll_speed":0,                  # How fast (if at all) to cycle colour colours across strip
