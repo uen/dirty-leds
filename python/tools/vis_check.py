@@ -4,6 +4,7 @@
     python3 tools/vis_check.py "test/02 Breakdown and drop.wav" song.mp3
 
 Runs each track through the audio pipeline and every effect on a 150 LED strip
+(--leds to change)
 and reports, per effect:
 
     lit     share of LEDs visibly on, on average
@@ -30,7 +31,7 @@ import main  # noqa: E402
 from lib.audio import MUSIC_DIR, list_tracks  # noqa: E402
 
 LIT_LEVEL = 30  # a channel above this counts as visibly on
-STRIP = 150
+STRIP = 150  # default strip length, --leds to change
 
 
 def decode(track):
@@ -46,7 +47,7 @@ def strip_boards(effects):
     boards = {}
     for effect in effects:
         board = main.Board(template.board)
-        board.config = dict(template.config, N_PIXELS=STRIP, current_effect=effect)
+        board.config = dict(template.config, N_PIXELS=args.leds, current_effect=effect)
         board.effectConfig = copy.deepcopy(template.effectConfig)
         board.visualizer = main.Visualizer(board)
         board.signalProcessor = main.DSP(board)
@@ -111,6 +112,8 @@ def main_():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("tracks", nargs="*", help="files in music/ (default: all)")
     parser.add_argument("--effects", help="comma separated effects (default: all music-reactive ones)")
+    parser.add_argument("--leds", type=int, default=STRIP, help="strip length to test on (default %(default)s)")
+    global args
     args = parser.parse_args()
     config.settings["sync"] = False
     for board in main.boards.values():

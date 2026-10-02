@@ -7,7 +7,7 @@ import os
 
 effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur to apply
                                                    "color_mode": "Dancefloor",      # Bass, mids and treble take colours from this
-                                                   "scale":0.9,                     # Width of effect on strip
+                                                   "scale":0.6,                     # Furthest the bars reach, as a share of the strip
                                                    "r_multiplier": 1.0,             # How far the bass bar reaches
                                                    "mirror": True,                  # Reflect output down centre of strip
                                                    "g_multiplier": 1.0,             # How far the mids bar reaches
@@ -29,7 +29,7 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                    "flip_lr":False},                # Flip output left-right
                                      "Scroll":    {"color_mode": "Dancefloor",      # Bass, mids and treble take colours from this
                                                    "trail": 1.0,                    # Seconds for colour to fade as it moves
-                                                   "speed": 1,                      # Speed of scroll
+                                                   "speed": 3,                      # Pixels the colour moves each frame
                                                    "mirror": True,                  # Reflect output down centre of strip
                                                    "blur": 0.5},                    # Amount of blur to apply
                                      "Power":     {"color_mode": "Spectral",        # Colour gradient to display

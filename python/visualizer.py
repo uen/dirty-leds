@@ -147,7 +147,7 @@ class Visualizer():
                                                  ["blur", "Blur", "float_slider", (0,3,0.1)],
                                                  ["mirror", "Mirror", "checkbox"],
                                                  ["trail", "Trail (s)", "float_slider", (0.1,4.0,0.1)],
-                                                 ["speed", "Speed", "slider", (1,5,1)]],
+                                                 ["speed", "Speed", "slider", (1,10,1)]],
                                         "Power":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["s_color", "Spark Color ", "dropdown", config.settings["colors"]],
                                                  ["s_count", "Spark Amount", "slider", (0,self.board.config["N_PIXELS"]//6,1)],

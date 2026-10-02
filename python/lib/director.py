@@ -20,26 +20,35 @@ MIN_BEATS_PER_LOOK = 8
 # except a jump up to peak, which cuts in straight away
 BEATS_TO_SETTLE = 2
 
-# A look is (main effect, its options), (supporting effect, its options)
+# A look is (main effect, its options), (supporting effect, its options).
+# Looks with the same effect on both put the whole room in unison
+# Only effects that move in a structured way (flowing, rolling, pulsing on the
+# beat); Sparkle and Power scatter random pixels, so the show leaves them out
 LOOKS = {
     "calm": [
-        (("Wavelength", {"roll_speed": 1}), ("Sparkle", {"density": 0.03, "fade": 0.4})),
-        (("Sparkle", {"density": 0.04, "fade": 0.5}), ("Wavelength", {})),
-        (("Spectrum", {"blur": 1.5}), ("Sparkle", {"density": 0.02})),
+        (("Wavelength", {"roll_speed": 1}), ("Spectrum", {"blur": 2.0})),
+        (("Spectrum", {"blur": 2.0}), ("Wavelength", {"roll_speed": 1})),
+        (("Scroll", {}), ("Wavelength", {})),
+        (("Wavelength", {"roll_speed": 1}), ("Wavelength", {"roll_speed": 1})),
     ],
     "groove": [
         (("Scroll", {}), ("Wavelength", {})),
         (("Spectrum", {}), ("Scroll", {})),
-        (("Bars", {"resolution": 6}), ("Sparkle", {})),
+        (("Bars", {"resolution": 6}), ("Wavelength", {})),
         (("Reactive Runner", {}), ("Energy", {})),
         (("Wavelength", {}), ("Ripple", {})),
+        (("Scroll", {}), ("Scroll", {})),
+        (("Spectrum", {}), ("Spectrum", {})),
     ],
     "peak": [
         (("Pulse", {}), ("Ripple", {})),
         (("Ripple", {"on_beat": True}), ("Pulse", {})),
         (("Energy", {}), ("Ripple", {})),
-        (("Power", {}), ("Pulse", {})),
+        (("Scroll", {}), ("Pulse", {})),
         (("Scroll", {}), ("Ripple", {})),
+        (("Scroll", {}), ("Scroll", {})),
+        (("Ripple", {"on_beat": True}), ("Ripple", {"on_beat": True})),
+        (("Pulse", {}), ("Pulse", {})),
     ],
 }
 PALETTES = {
@@ -176,7 +185,8 @@ class Director:
         fast = features.tempo >= 125
         peak = self.tier == "peak"
         if effect == "Scroll":
-            return {"speed": 2 if fast or peak else 1, "trail": {"calm": 1.5, "groove": 1.0, "peak": 0.6}[self.tier],
+            return {"speed": {"calm": 2, "groove": 3, "peak": 5}[self.tier] + (1 if fast else 0),
+                    "trail": {"calm": 1.5, "groove": 1.0, "peak": 0.6}[self.tier],
                     "mirror": True, "blur": 0.8}
         if effect == "Ripple":
             return {"beats": 2.0 if fast else 1.5, "width": 10.0 if peak else 7.0}

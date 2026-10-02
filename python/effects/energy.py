@@ -5,6 +5,11 @@ from lib.features import Envelope
 from effects.effect import Effect
 
 
+# A bar is a bright head with a dim glow behind it, like a level meter, so long
+# strips don't turn into a wall of light
+BODY = 0.25
+
+
 class Energy(Effect):
     """Bars for the bass, mids and treble that grow from the start of the strip,
     in three colours from the palette"""
@@ -21,11 +26,16 @@ class Energy(Effect):
         bands = np.array([features.bass * options["r_multiplier"],
                           features.mid * options["g_multiplier"],
                           features.treble * options["b_multiplier"]])
-        lengths = self.lengths.update(np.clip(bands * reach, 0, n))
+        # Squared so bars only reach far on strong hits
+        lengths = self.lengths.update(np.clip(bands ** 2 * reach, 0, n))
 
-        # Each bar fades out toward its tip instead of ending in a hard edge
-        softness = max(3.0, 0.2 * n * options["scale"])
-        levels = np.clip((lengths[:, np.newaxis] - np.arange(n)) / softness, 0, 1) ** 1.5
+        position = np.arange(n)
+        behind = lengths[:, np.newaxis] - position  # pixels from each bar's head, back toward the start
+        head = max(2.0, 0.04 * n)
+        levels = np.where(behind >= 0,
+                          BODY + (1 - BODY) * np.exp(-behind / head),
+                          np.exp(-(behind / head) ** 2))
+        levels *= lengths[:, np.newaxis] > 0.5
         gradient = board.visualizer.gradient(options["color_mode"])
         colours = gradient[:, [0, n // 2, n - 1]].T  # bass, mids, treble colours
         # Brightest bar wins where they overlap, so the start doesn't wash out to white
