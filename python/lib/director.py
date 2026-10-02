@@ -107,6 +107,9 @@ class Director:
         self.cue = None
         self.variation = 0
         self.second_impact_at = None
+        # Live show (no pre-analysis): drops so far, scenes so far
+        self.live_drops = 0
+        self.live_scenes = 0
         self.beats_in_look = 0
         self.pending = None  # why the look should change on the next beat
         self.transition = 0.5
@@ -134,8 +137,11 @@ class Director:
             return
         self.requested = False
         features = self.music.current
-        if features.prepared and features.analysis is not None and self._style() != "effects":
+        style = self._style()
+        if features.prepared and features.analysis is not None and style != "effects":
             self._follow_plan(features)
+        elif style != "effects":
+            self._follow_live_show(features)
         else:
             self.cue = None
             if features.prepared:
@@ -143,6 +149,86 @@ class Director:
             else:
                 self._follow_live(features)
         self._steer_freestyle(features)
+
+    def _follow_live_show(self, features):
+        """No pre-analysis (mic, system audio): the same scenes as a planned show,
+        started by what is heard. Drops land on the bass slamming in or the energy
+        rising into a peak; scenes change with the energy and every few bars"""
+        self.level = 1.0
+        tier = self._tier(features.intensity)
+        rising_to_peak = tier == "peak" and TIERS.index(tier) > TIERS.index(self.tier)
+        settled = False
+        if tier == self.tier:
+            self.candidate = None
+        else:
+            if tier != self.candidate:
+                self.candidate, self.candidate_beats = tier, 0
+            self.candidate_beats += features.beat
+            settled = self.candidate_beats >= BEATS_TO_SETTLE
+        self.beats_in_look += features.beat
+
+        if features.drop_hit or rising_to_peak:
+            self.tier = "peak"
+            self.candidate = None
+            self.live_drops += 1
+            self._live_cue("drop", features)
+            return
+        if settled:
+            self.tier = tier
+            self.candidate = None
+            self._live_cue("scene", features)
+            return
+        if self.cue is None:
+            self._live_cue("scene", features)
+            return
+        if self.cue.kind == "drop" and self.beats_in_look >= 4 * choreography.DROP_BARS:
+            self._live_cue("scene", features)
+            return
+        building = features.build > 0.55 and self.tier != "peak"
+        if building and self.cue.kind != "build":
+            self._live_cue("build", features)
+            return
+        if self.cue.kind == "build" and features.build < 0.35:
+            self._live_cue("scene", features)
+            return
+        if features.beat and self.beats_in_look >= 4 * choreography.SCENE_BARS:
+            self._live_cue("scene", features)
+            return
+        self._cue_variation(features)
+
+    def _live_cue(self, kind, features):
+        palettes = choreography.PALETTES["peak" if kind == "drop" else self.tier]
+        palette = self.rng.choice([p for p in palettes if p != self.palette] or palettes)
+        support = self.rng.choice([p for p in palettes if p != palette] or palettes)
+        if kind == "drop":
+            # Escalate over the first few drops of a song
+            cue = choreography._drop_cue(0, 0, palette, support, self.live_drops - 1, False,
+                                         min(1.0, (self.live_drops - 1) / 3))
+            self.impact += 1
+            self.snap += 1
+        elif kind == "build":
+            cue = choreography._build_cue(0, 0, palette)
+        else:
+            self.live_scenes += 1
+            shape = choreography.SHAPES[self.live_scenes % len(choreography.SHAPES)]
+            cue = choreography._scene_cue(0, 0, self.tier, palette, support, shape, self.live_scenes, self._style(),
+                                          self.rng, max(0, self.live_drops - 1) if self.tier == "peak" else 0, False)
+        self.cue = cue
+        self.variation = 0
+        self._cast_cue(cue, features)
+
+    def _cue_variation(self, features):
+        """Variations every few bars inside a scene: shapes rotate, the others change direction"""
+        cue = self.cue
+        if cue.kind in ("peak", "groove", "calm") and features.beat and self.beats_in_look \
+                and self.beats_in_look % (4 * VARY_BARS) == 0:
+            self.variation += 1
+            if cue.sparse:
+                # Without a beat to play with, the colours themselves change places
+                self.palette, self.support_palette = self.support_palette, self.palette
+                self.assignments = {name: self._assign(board, features) for name, board in self.boards.items()}
+            if self.on_change:
+                self.on_change()
 
     def _follow_plan(self, features):
         """With a pre-analysed track: play the show planned for it, cue by cue"""
@@ -170,17 +256,8 @@ class Director:
             self.impact += 1
             self.second_impact_at = None
         self.building = cue.kind == "build"
-        # Variations every few bars inside a scene: shapes rotate, the others change direction
         self.beats_in_look += features.beat
-        if cue.kind in ("peak", "groove", "calm") and features.beat and self.beats_in_look \
-                and self.beats_in_look % (4 * VARY_BARS) == 0:
-            self.variation += 1
-            if cue.sparse:
-                # Without a beat to play with, the colours themselves change places
-                self.palette, self.support_palette = self.support_palette, self.palette
-                self.assignments = {name: self._assign(board, features) for name, board in self.boards.items()}
-            if self.on_change:
-                self.on_change()
+        self._cue_variation(features)
         # Fade to black over the last beat and a half before the drop, so it lands out of darkness
         if self.building and features.until_drop is not None and features.until_drop <= 1.5 * beat:
             self.level = max(0.0, (features.until_drop - beat / 4) / (beat * 1.25))
@@ -385,8 +462,12 @@ class Director:
         targets.update(cue.lead if leads else cue.support)
         if cue.kind == "build":
             analysis = features.analysis
-            frame = int(round(features.position * analysis.fps))
-            progress = min(1.0, max(0.0, (frame - cue.start) / max(cue.end - cue.start, 1)))
+            if analysis is not None and cue.end > cue.start:
+                frame = int(round(features.position * analysis.fps))
+                progress = min(1.0, max(0.0, (frame - cue.start) / max(cue.end - cue.start, 1)))
+            else:
+                # Live there is no knowing when the drop comes: follow how hard it is building
+                progress = min(1.0, features.build)
             targets.update(choreography.build_targets(cue, progress, 60.0 / max(features.tempo, 60),
                                                       features.until_drop))
         return targets

@@ -168,6 +168,7 @@ class BeatTracker:
         self.tempo = float(PREFERRED_TEMPO)
         self.confidence = 0.0
         self.challenger = 0
+        self.since_beat = 0
         self.phase = 0.0
         min_lag = int(round(60 * fps / TEMPO_RANGE[1]))
         max_lag = int(round(60 * fps / TEMPO_RANGE[0]))
@@ -188,14 +189,16 @@ class BeatTracker:
             error = self.phase if self.phase < 0.5 else self.phase - 1.0
             if abs(error) < 0.3:
                 self.phase -= 0.2 * error
+        self.since_beat += 1
         beat = self.phase >= 1.0
         if beat:
             self.phase -= math.floor(self.phase)
-        if self.confidence <= 0.1:
-            # No steady tempo: fall back to beating on hits
-            beat = onset_hit
-            if onset_hit:
-                self.phase = 0.0
+        # No beats while there is no steady tempo (turning every hit into a beat
+        # made beat-driven effects flash at random), and never faster than 180 bpm
+        if self.confidence <= 0.1 or self.since_beat < self.fps * 60 / TEMPO_RANGE[1]:
+            beat = False
+        if beat:
+            self.since_beat = 0
         return beat
 
     def _estimate_tempo(self):
@@ -244,6 +247,61 @@ class BeatTracker:
             self.challenger = 0
 
 
+class DropDetector:
+    """Fires when the bass slams back in: the loudest bass share of the last 0.2 s
+    is well above how it sat over the 4 seconds before, and it got louder too.
+    Live, this lands on the drop's first kick, where intensity takes a second"""
+    def __init__(self, fps, cooldown=8.0, jump_db=8.0, louder_db=2.0):
+        self.fps = fps
+        self.recent = int(0.2 * fps)
+        self.bass = deque(maxlen=int(4.2 * fps))
+        self.loud = deque(maxlen=int(4.2 * fps))
+        self.cooldown = int(cooldown * fps)
+        self.since = self.cooldown
+        self.jump_db = jump_db
+        self.louder_db = louder_db
+
+    def update(self, bass_share_db, loudness_db, silent):
+        self.bass.append(bass_share_db)
+        self.loud.append(loudness_db)
+        self.since += 1
+        if silent or len(self.bass) < self.bass.maxlen or self.since < self.cooldown:
+            return False
+        bass, loud = np.array(self.bass), np.array(self.loud)
+        before_bass, before_loud = bass[:-self.recent], loud[:-self.recent]
+        hit = bass[-self.recent:].max() > np.percentile(before_bass, 90) + self.jump_db \
+            and loud[-self.recent:].mean() > before_loud.mean() + self.louder_db
+        if hit:
+            self.since = 0
+        return bool(hit)
+
+
+class BuildDetector:
+    """How much the music is building toward something, 0-1: over the last few
+    beats compared with the few before, hits getting denser, the sound getting
+    brighter and the bass pulling out, the usual signs of a riser"""
+    def __init__(self, fps):
+        self.fps = fps
+        self.flux = deque(maxlen=int(12 * fps))
+        self.bright = deque(maxlen=int(12 * fps))
+        self.bass = deque(maxlen=int(12 * fps))
+        self.level = Envelope(0.5, 0.8, 1.0 / fps)
+
+    def update(self, flux, brightness, bass_share_db, tempo, silent):
+        self.flux.append(flux)
+        self.bright.append(brightness)
+        self.bass.append(bass_share_db)
+        window = int(4 * 60 / max(tempo, 60) * self.fps)
+        if silent or len(self.flux) < 2 * window:
+            return float(self.level.update(0.0))
+        flux, bright, bass = np.array(self.flux), np.array(self.bright), np.array(self.bass)
+        now, before = slice(-window, None), slice(-2 * window, -window)
+        denser = np.clip((flux[now].mean() / (flux[before].mean() + 1e-6) - 1.0) / 0.5, 0, 1)
+        brighter = np.clip((bright[now].mean() - bright[before].mean()) / 0.15, 0, 1)
+        thinner = np.clip((bass[before].mean() - bass[now].mean()) / 6.0, 0, 1)
+        return float(self.level.update(0.4 * denser + 0.3 * brighter + 0.3 * thinner))
+
+
 class SongHistory:
     """Recent values of a level, to judge a new value against the song so far
 
@@ -286,6 +344,8 @@ class Features:
     tempo: float = float(PREFERRED_TEMPO)
     section_change: bool = False
     silent: bool = True
+    drop_hit: bool = False
+    build: float = 0.0
     prepared: bool = False
     tier: str = None
     until_drop: float = None
@@ -332,11 +392,16 @@ class MusicFeatures:
         self.band_levels = BandLevels(dt, 3)
         self.bin_levels = BandLevels(dt, N_BINS)
         self.intensity_band = _band(freqs, *INTENSITY_BASS)
-        self.loudness = Envelope(0.3, 1.5, dt, value=SILENCE_DBFS)
-        self.bass_share = Envelope(0.3, 1.5, dt, value=-20.0)
+        self.loudness = Envelope(0.15, 1.5, dt, value=SILENCE_DBFS)
+        self.bass_share = Envelope(0.15, 1.5, dt, value=-20.0)
+        self.drops = DropDetector(self.fps)
+        self.builds = BuildDetector(self.fps)
         self.loudness_history = SongHistory(self.fps)
         self.bass_share_history = SongHistory(self.fps)
-        self.intensity = Envelope(0.5, 0.5, dt)
+        self.flux_history = SongHistory(self.fps)
+        # Onset activity smoothed over about a second
+        self.activity = Envelope(1.0, 1.0, dt, value=0.01)
+        self.intensity = Envelope(0.2, 0.6, dt)
         self.brightness = Envelope(0.3, 0.3, dt, value=0.5)
         self.previous_spectrum = None
         self.kick = OnsetDetector(dt)
@@ -386,9 +451,11 @@ class MusicFeatures:
         onset_hit = self.onset.update(0.0 if silent else total_flux)
         beat = self.beats.update(0.0 if silent else total_flux, kick_hit or onset_hit)
 
-        # How big this part of the song is. Mostly how much of the energy is bass,
-        # which swings 15-30 dB between breakdowns and drops while loudness barely
-        # moves on modern masters; partly loudness against the song so far
+        # How big this part of the song is, the same recipe as the pre-analysis
+        # (lib/analysis.py): bass share (swings 15-30 dB between breakdowns and
+        # drops on modern masters), loudness and onset activity against the song
+        # so far, capped by onset activity on an absolute scale so drones and
+        # sparse music can't read as a peak
         total_db = 10 * math.log10(float(power.sum()) + 1e-12)
         bass_db = 10 * math.log10(float(power[self.intensity_band].sum()) + 1e-12)
         loudness = float(self.loudness.update(SILENCE_DBFS if silent else level))
@@ -398,14 +465,22 @@ class MusicFeatures:
         else:
             bass_part = self.bass_share_history.normalise(bass_share, min_range=12.0, prior=(-18.0, 0.0))
             loud_part = self.loudness_history.normalise(loudness, min_range=6.0, prior=(-30.0, -10.0))
-            target = 0.7 * bass_part + 0.3 * loud_part
+            activity = float(self.activity.update(total_flux))
+            flux_part = self.flux_history.normalise(math.log(activity + 1e-4), min_range=0.7,
+                                                    prior=(math.log(0.005), math.log(0.1)))
+            absolute = min(1.0, max(0.0, math.log(max(activity, 1e-9) / 0.005) / math.log(0.1 / 0.005)))
+            target = (0.45 * bass_part + 0.3 * loud_part + 0.25 * flux_part) * (0.55 + 0.45 * absolute)
         intensity = float(self.intensity.update(target))
 
         weights = power[self.audible]
+        bright = float(self.brightness.value)
         if not silent and weights.sum() > 0:
             centroid = float(np.dot(self.centroid_freqs, weights) / weights.sum())
             # 200 Hz (dull) to 5 kHz (bright), on a log scale
-            self.brightness.update(float(np.clip(np.log2(centroid / 200) / np.log2(5000 / 200), 0, 1)))
+            bright = float(np.clip(np.log2(centroid / 200) / np.log2(5000 / 200), 0, 1))
+            self.brightness.update(bright)
+        drop_hit = self.drops.update(bass_db - total_db, level, silent)
+        build = self.builds.update(total_flux, bright, bass_db - total_db, self.beats.tempo, silent)
 
         self.since_section += dt
         self.recent.append(loudness)
@@ -424,6 +499,6 @@ class MusicFeatures:
             hat=float(self.hat.envelope.value), onset=float(self.onset.envelope.value),
             kick_hit=kick_hit, snare_hit=snare_hit, hat_hit=hat_hit,
             beat=bool(beat), beat_phase=float(self.beats.phase), tempo=float(self.beats.tempo),
-            section_change=section_change, silent=silent,
+            section_change=section_change, silent=silent, drop_hit=drop_hit, build=build,
         )
         return self.current

@@ -40,6 +40,8 @@ parser.add_argument("track", help="file in music/")
 parser.add_argument("--config", default="rooms/flat.json", help="room to render (default %(default)s)")
 parser.add_argument("--seed", type=int, default=1, help="random seed for the show's choices")
 parser.add_argument("--style", choices=["mixed", "freestyle", "effects"], help="show style (default: the config's)")
+parser.add_argument("--live", action="store_true",
+                    help="run the show without pre-analysis, as on mic or system audio (the analysis still judges it)")
 parser.add_argument("--out", help="image path (default music/.reports/<track>.png)")
 args = parser.parse_args()
 os.environ["DIRTY_LEDS_CONFIG"] = args.config
@@ -61,7 +63,7 @@ def render(track):
     np.random.seed(args.seed)
     main.director.rng.seed(args.seed)
     analysis = analyse_file(os.path.join(MUSIC_DIR, track))
-    main.library = types.SimpleNamespace(get=lambda _: analysis)
+    main.library = types.SimpleNamespace(get=lambda _: None if args.live else analysis)
     main.audio = types.SimpleNamespace(track=track, track_frame=0)
     for board in main.boards.values():
         board.esp._ip, board.esp._port = "127.0.0.1", 9
@@ -311,10 +313,12 @@ def draw(track, analysis, strips, looks, frames, energy, intensity, path):
 def main_():
     analysis, strips, looks, frames = render(args.track)
     checks, energy, intensity = score(analysis, strips, looks, frames)
-    print(f"\n{args.track}: {frames / FPS:.0f} s, {len(looks)} looks, room {args.config}\n")
+    mode = "live, no pre-analysis" if args.live else "pre-analysed"
+    print(f"\n{args.track}: {frames / FPS:.0f} s, {len(looks)} looks, room {args.config}, {mode}\n")
     for name, value, target, ok, detail in checks:
         print(f"  {'ok  ' if ok else 'FAIL'}  {name:<9} {value:<28} target {target:<14} {detail}")
-    name = os.path.splitext(os.path.basename(args.track))[0] + (f" ({args.style})" if args.style else "")
+    name = os.path.splitext(os.path.basename(args.track))[0] + (f" ({args.style})" if args.style else "") \
+        + (" live" if args.live else "")
     path = args.out or os.path.join(MUSIC_DIR, ".reports", name + ".png")
     draw(args.track, analysis, strips, looks, frames, energy, intensity, path)
     print(f"\n  lightogram: {path}")
