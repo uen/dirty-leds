@@ -31,6 +31,13 @@ export function Header({ state, connected, error, run }: HeaderProps) {
         <h1 className="room-name">{state.room?.name ?? "Your room"}</h1>
         {status}
       </div>
+      <button
+        className="auto-show"
+        aria-pressed={state.autoShow}
+        onClick={() => run("auto-show", { value: !state.autoShow })}
+      >
+        Auto show
+      </button>
       <Slider
         className="master"
         label="Master"

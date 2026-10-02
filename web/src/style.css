@@ -229,6 +229,17 @@ select {
   flex-basis: 100%;
 }
 
+.auto-show {
+  padding: 0.4rem 1rem;
+  font-weight: 600;
+}
+
+.auto-show[aria-pressed="true"] {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--amber-ink);
+}
+
 /* Controls */
 
 .control-label {

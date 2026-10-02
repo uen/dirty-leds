@@ -98,6 +98,8 @@ def _device_state(name, board):
         "name": name,
         "leds": board.config["N_PIXELS"],
         "currentEffect": board.config["current_effect"],
+        # What the auto show picked for this strip, when it is on Auto
+        "showing": board.show.assignment(board).effect if board.config["current_effect"] == "Auto" else None,
         "minFrequency": board.config["MIN_FREQUENCY"],
         "maxFrequency": board.config["MAX_FREQUENCY"],
         "layout": _config.settings["devices"][name].get("layout"),
@@ -108,6 +110,7 @@ def _device_state(name, board):
 def get_state():
     from lib.audio import available_sources
     return {
+        "autoShow": all(board.config["current_effect"] == "Auto" for board in _boards.values()),
         "sync": _config.settings["sync"],
         "brightness": round(_config.settings["brightness"] * 100),
         "currentProfile": _config.settings["currentProfile"],
@@ -185,6 +188,24 @@ def set_effect(payload):
         return "Effect not found: {}".format(effect)
     for board in boards:
         board.config["current_effect"] = effect
+    _clear_profile()
+
+
+# Effects each strip had before the auto show took over, to put back when it stops
+_before_show = {}
+
+
+@action("auto-show")
+def auto_show(payload):
+    if not isinstance(payload["value"], bool):
+        return "Expected true or false"
+    for name, board in _boards.items():
+        if payload["value"]:
+            if board.config["current_effect"] != "Auto":
+                _before_show[name] = board.config["current_effect"]
+            board.config["current_effect"] = "Auto"
+        elif board.config["current_effect"] == "Auto":
+            board.config["current_effect"] = _before_show.pop(name, "Scroll")
     _clear_profile()
 
 

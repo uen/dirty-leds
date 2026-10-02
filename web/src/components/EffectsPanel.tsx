@@ -20,6 +20,12 @@ export function EffectsPanel({ device, synced, run }: EffectsPanelProps) {
       <header className="effects-header">
         <h2>{device.name}</h2>
         {synced && <p className="hint">Sync is on, so changes apply to every strip.</p>}
+        {device.currentEffect === "Auto" && (
+          <p className="hint">
+            The auto show is choosing effects for this strip{device.showing ? `, now ${device.showing}` : ""}.
+            Pick any effect to take over.
+          </p>
+        )}
       </header>
       <EffectList title="Follows the music" effects={device.effects.filter((e) => e.reactive)}
         current={device.currentEffect} onPick={pick} />

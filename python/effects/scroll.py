@@ -1,20 +1,21 @@
 import numpy as np
-import config
 import util
 
 from effects.effect import Effect
 
 
 class Scroll(Effect):
-    """Colour flows out from the start of the strip: red for bass, green for mids, blue for treble"""
+    """Colour flows out from the start of the strip, with the bass, mids and treble
+    taking the start, middle and end colours of the palette"""
     def __init__(self, visualizer):
         self.output = np.zeros((3, visualizer.board.config["N_PIXELS"]))
 
     def visualize(self, board, y):
         options = board.effectConfig["Scroll"]
         features = board.features
-        colours = np.array([config.settings["colors"][options[key]] for key in ("lows_color", "mids_color", "high_color")],
-                           dtype=float)
+        n = board.config["N_PIXELS"]
+        gradient = board.visualizer.gradient(options["color_mode"])
+        colours = gradient[:, [0, n // 2, n - 1]].T.astype(float)  # bass, mids, treble
         # Squared so a band only shows when it is actually pushing, not idling mid-range
         bands = np.array([features.bass, features.mid, features.treble]) ** 2
         new = np.minimum(bands @ colours * self.dynamics(features), 255)

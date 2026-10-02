@@ -134,7 +134,7 @@ class Visualizer():
                                                   ["density", "Density", "float_slider", (0.01, 0.3, 0.01)],
                                                   ["fade", "Fade (s)", "float_slider", (0.05, 1.0, 0.05)]],
                                         "Auto": [
-                                                    ["bars", "Bars per effect", "slider", (1, 32, 1)]
+                                                    ["bars", "Bars per look", "slider", (4, 32, 4)]
                                                 ],
                                    "Wavelength":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["roll_speed", "Roll Speed", "slider", (0,8,1)],
@@ -143,9 +143,7 @@ class Visualizer():
                                                  ["reverse_grad", "Reverse Gradient", "checkbox"],
                                                  ["reverse_roll", "Reverse Roll", "checkbox"],
                                                  ["flip_lr", "Flip LR", "checkbox"]],
-                                       "Scroll":[["lows_color", "Lows Color", "dropdown", config.settings["colors"]],
-                                                 ["mids_color", "Mids Color", "dropdown", config.settings["colors"]],
-                                                 ["high_color", "Highs Color", "dropdown", config.settings["colors"]],
+                                       "Scroll":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["blur", "Blur", "float_slider", (0,3,0.1)],
                                                  ["mirror", "Mirror", "checkbox"],
                                                  ["trail", "Trail (s)", "float_slider", (0.1,4.0,0.1)],

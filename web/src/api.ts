@@ -20,6 +20,8 @@ export interface Device {
   name: string;
   leds: number;
   currentEffect: string;
+  /** The effect the auto show picked, while currentEffect is "Auto" */
+  showing: string | null;
   minFrequency: number;
   maxFrequency: number;
   layout: Vec3[] | null;
@@ -47,6 +49,8 @@ export interface Room {
 }
 
 export interface State {
+  /** Every strip is on the auto show */
+  autoShow: boolean;
   sync: boolean;
   brightness: number;
   currentProfile: string;

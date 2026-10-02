@@ -41,7 +41,9 @@ function Channel({ device, selected, onSelect, frames }: ChannelProps) {
     <button className="channel" aria-pressed={selected} onClick={onSelect}>
       <span ref={swatch} className="swatch" aria-hidden="true" />
       <span className="channel-name">{device.name}</span>
-      <span className="channel-effect">{device.currentEffect}</span>
+      <span className="channel-effect">
+        {device.currentEffect === "Auto" && device.showing ? `Auto: ${device.showing}` : device.currentEffect}
+      </span>
       <span className="channel-meta">{device.leds} LEDs</span>
     </button>
   );

@@ -27,9 +27,7 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                    "reverse_roll": False,           # Reverse movement of gradient roll
                                                    "blur": 2.0,                     # Amount of blur to apply
                                                    "flip_lr":False},                # Flip output left-right
-                                     "Scroll":    {"lows_color": "Red",             # Colour of low frequencies
-                                                   "mids_color": "Green",           # Colour of mid frequencies
-                                                   "high_color": "Blue",            # Colour of high frequencies
+                                     "Scroll":    {"color_mode": "Dancefloor",      # Bass, mids and treble take colours from this
                                                    "trail": 1.0,                    # Seconds for colour to fade as it moves
                                                    "speed": 1,                      # Speed of scroll
                                                    "mirror": True,                  # Reflect output down centre of strip
@@ -51,7 +49,7 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                    "spark_color": "White",
                                                    "density": 0.06,                 # Share of the strip lit per hit, at full intensity
                                                    "fade": 0.25},                   # Seconds for a sparkle to fade
-                                     "Auto":      {"bars": 8},                      # Bars before switching, unless the song changes section first
+                                     "Auto":      {"bars": 16},                     # Bars before a new look, unless the song changes first
                                      "Bars":      {"resolution":4,                  # Number of "bars"
                                                    "color_mode":"Spectral",         # Multicolour mode to use
                                                    "roll_speed":0,                  # How fast (if at all) to cycle colour colours across strip
@@ -111,7 +109,7 @@ with open(os.environ.get("DIRTY_LEDS_CONFIG", "config.json")) as configFile:
 
 
 settings = {                                                      # All settings are stored in this dict
-    "sync" : True,
+    "sync" : False,
     "brightness" : 0.8,
     "currentProfile": "",
     "server": {"host": "127.0.0.1", "port": 8000, **data.get("server", {})},  # Web interface
