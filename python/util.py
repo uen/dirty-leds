@@ -63,3 +63,8 @@ def interpolate(y, new_length):
     x_new = _normalized_linspace(new_length)
     z = np.interp(x_new, x_old, y)
     return z
+
+
+def interpolate_rows(array, new_length):
+    """interpolate() applied to each row of a 2D array"""
+    return np.array([interpolate(row, new_length) for row in array])

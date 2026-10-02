@@ -294,6 +294,8 @@ class Features:
     groove_strength: float = 0.0
     bar_step: int = -1
     upcoming: dict = None
+    # The pre-analysis itself (lib.analysis.TrackAnalysis), so the show can plan from it
+    analysis: object = None
 
 
 def _band(freqs, low, high):

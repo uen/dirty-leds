@@ -111,6 +111,7 @@ def apply_prepared(features):
     for name, value in analysis.at(audio.track_frame).items():
         setattr(features, name, value)
     features.prepared = True
+    features.analysis = analysis
 
 
 def lead_board():

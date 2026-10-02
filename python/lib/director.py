@@ -11,6 +11,9 @@ import copy
 import random
 from dataclasses import dataclass, field
 
+from effects.freestyle import MOODS as FREESTYLE_MOODS
+from lib import choreography
+
 TIERS = ("calm", "groove", "peak")
 # Intensity where each tier starts; leaving needs a margin so it doesn't flicker on the edge
 TIER_START = {"groove": 0.35, "peak": 0.72}
@@ -33,11 +36,16 @@ POOLS = {
 }
 # Overall brightness of the show per tier, on top of each effect's own dynamics,
 # so drops are clearly the brightest moments and calm parts sit back
-TIER_LEVEL = {"calm": 0.55, "groove": 0.8, "peak": 1.0}
+TIER_LEVEL = {"calm": 0.65, "groove": 0.8, "peak": 1.0}
 # A drop opens with an effect that fills the strips, not a sparse one
 DROP_EFFECTS = ["Pulse", "Scroll", "Energy"]
 # The last bars before a known drop: every strip together, tightening toward the hit
-BUILD_EFFECTS = ["Scroll", "Pulse"]
+BUILD_EFFECTS = ["Scroll", "Pulse", "Freestyle"]
+# How Freestyle is favoured as the lead in "mixed" style, per tier
+FREESTYLE_LEAD_WEIGHT = {"calm": 1.5, "groove": 4.0, "peak": 4.0}
+# Freestyle variations the show rotates through every few bars
+FREESTYLE_SHAPES = ["mirror", "room", "linear"]
+FREESTYLE_HITS = {"calm": ["ripple"], "groove": ["block", "ripple"], "peak": ["ripple", "block", "flash"]}
 BUILD_BEATS = 8
 # Unison is a moment, not the norm: the first bars after a drop, then the strips split up
 UNISON_AFTER_DROP_BEATS = 16
@@ -88,6 +96,17 @@ class Director:
         self.support_palette = PALETTES["calm"][1]
         self.mirror = True
         self.usage = {}
+        # Freestyle knobs the show is steering toward
+        self.freestyle_shape = "mirror"
+        self.freestyle_hits = "ripple"
+        self.snap = 0
+        self.impact = 0
+        # The planned show for a pre-analysed track (lib/choreography.py)
+        self.plan_for = None
+        self.cues = []
+        self.cue = None
+        self.variation = 0
+        self.second_impact_at = None
         self.beats_in_look = 0
         self.pending = None  # why the look should change on the next beat
         self.transition = 0.5
@@ -115,9 +134,77 @@ class Director:
             return
         self.requested = False
         features = self.music.current
-        if features.prepared:
-            self._follow_map(features)
+        if features.prepared and features.analysis is not None and self._style() != "effects":
+            self._follow_plan(features)
+        else:
+            self.cue = None
+            if features.prepared:
+                self._follow_map(features)
+            else:
+                self._follow_live(features)
+        self._steer_freestyle(features)
+
+    def _follow_plan(self, features):
+        """With a pre-analysed track: play the show planned for it, cue by cue"""
+        analysis = features.analysis
+        if self.plan_for is not analysis:
+            self.cues = choreography.plan(analysis, self._style(), seed=self.rng.random())
+            self.plan_for = analysis
+            self.cue = None
+        frame = int(round(features.position * analysis.fps)) % analysis.frames
+        cue = next((c for c in self.cues if c.start <= frame < c.end), self.cues[-1] if self.cues else None)
+        if cue is None:
             return
+        beat = 60.0 / max(features.tempo, 60)
+        if cue is not self.cue:
+            self.cue = cue
+            self.tier = cue.tier
+            self.variation = 0
+            if cue.kind == "drop":
+                self.impact += 1
+                self.snap += 1
+                # The last drop hits twice: again one bar in
+                self.second_impact_at = frame + int(4 * beat * analysis.fps) if cue.final else None
+            self._cast_cue(cue, features)
+        if self.second_impact_at is not None and frame >= self.second_impact_at:
+            self.impact += 1
+            self.second_impact_at = None
+        self.building = cue.kind == "build"
+        # Variations every few bars inside a scene: shapes rotate, the others change direction
+        self.beats_in_look += features.beat
+        if cue.kind in ("peak", "groove", "calm") and features.beat and self.beats_in_look \
+                and self.beats_in_look % (4 * VARY_BARS) == 0:
+            self.variation += 1
+            if self.on_change:
+                self.on_change()
+        # Fade to black over the last beat and a half before the drop, so it lands out of darkness
+        if self.building and features.until_drop is not None and features.until_drop <= 1.5 * beat:
+            self.level = max(0.0, (features.until_drop - beat / 4) / (beat * 1.25))
+        else:
+            self.level = 1.0
+
+    def _cast_cue(self, cue, features):
+        ranked = self._ranked()
+        strips = {}
+        for i, name in enumerate(ranked):
+            if i == 0 or not cue.support_effects:
+                strips[name] = "Freestyle"
+            else:
+                strips[name] = cue.support_effects[(i - 1) % len(cue.support_effects)]
+        self.look = {"lead": "Freestyle", "strips": strips, "split_after": None,
+                     "signature": "{} {} {}".format(cue.kind, cue.shape, "/".join(sorted(set(strips.values()))))}
+        self.palette, self.support_palette = cue.palette, cue.support_palette
+        self.freestyle_shape = cue.shape
+        # Straight in on a drop, otherwise crossfade over a beat
+        self.transition = 0.0 if cue.kind == "drop" else 60.0 / max(features.tempo, 60)
+        self.beats_in_look = 0
+        self.generation += 1
+        self.assignments = {name: self._assign(board, features) for name, board in self.boards.items()}
+        if self.on_change:
+            self.on_change()
+
+    def _follow_live(self, features):
+        """Without a pre-analysed track: react to the live features"""
         self.level = 1.0
         self.building = False
         tier = self._tier(features.intensity)
@@ -194,6 +281,9 @@ class Director:
             others = [p for p in PALETTES[self.tier] if p not in (self.palette, self.support_palette)]
             self.support_palette = self.rng.choice(others or PALETTES[self.tier])
         self.mirror = not self.mirror
+        # Freestyle morphs instead: a new shape and hit style, glided into
+        self.freestyle_shape = FREESTYLE_SHAPES[(FREESTYLE_SHAPES.index(self.freestyle_shape) + 1) % len(FREESTYLE_SHAPES)]
+        self.freestyle_hits = self.rng.choice(FREESTYLE_HITS[self.tier])
         self.transition = 60.0 / max(features.tempo, 60)
         for name in supports:
             self.assignments[name] = self._assign(self.boards[name], features)
@@ -241,6 +331,62 @@ class Director:
                 return board.effectConfig["Auto"]["bars"]
         return 16
 
+    def _style(self):
+        for board in self.boards.values():
+            if board.config["current_effect"] == "Auto":
+                return board.effectConfig["Auto"].get("style", "mixed")
+        return "mixed"
+
+    def _steer_freestyle(self, features):
+        """Set the knob targets of every strip showing Freestyle, each frame"""
+        if not self.assignments:
+            return
+        lead = self._ranked()[0]
+        for name, assignment in self.assignments.items():
+            if assignment.effect == "Freestyle":
+                assignment.options.update(self._freestyle_targets(name == lead, features))
+
+    def _freestyle_targets(self, leads, features):
+        if self.cue is not None:
+            return self._planned_targets(leads, features)
+        mood = "build" if self.building else self.tier
+        targets = dict(FREESTYLE_MOODS[mood])
+        targets.update({"auto": False, "snap": self.snap, "shape": self.freestyle_shape})
+        if mood != "build":
+            # Straight after a drop everything flashes; after that the rotating hit style
+            targets["hit_style"] = "flash" if self.look["split_after"] is not None and mood == "peak" else self.freestyle_hits
+        if not leads:
+            # Supporting strips answer the lead: flow the other way, hit on snares
+            targets["direction"] = -1
+            if targets["hit_source"] == "groove":
+                targets["hit_source"] = "snare"
+            if mood == "calm":
+                targets["flow_level"] *= 0.4
+                targets["hit_level"] = 0.0
+        else:
+            targets["direction"] = 1
+        return targets
+
+    def _planned_targets(self, leads, features):
+        """Knob targets from the current cue of the plan"""
+        cue = self.cue
+        mood = {"drop": "peak", "build": "build"}.get(cue.kind, cue.tier)
+        targets = dict(FREESTYLE_MOODS[mood])
+        shapes = choreography.SHAPES
+        # The lead and the others never share a shape, and both rotate every few bars
+        shape_index = shapes.index(cue.shape) + self.variation + (0 if leads else 1)
+        shape = "room" if cue.kind == "drop" else shapes[shape_index % len(shapes)]
+        targets.update({"auto": False, "snap": self.snap, "impact": self.impact, "shape": shape,
+                        "direction": 1 if leads or self.variation % 2 == 0 else -1})
+        targets.update(cue.lead if leads else cue.support)
+        if cue.kind == "build":
+            analysis = features.analysis
+            frame = int(round(features.position * analysis.fps))
+            progress = min(1.0, max(0.0, (frame - cue.start) / max(cue.end - cue.start, 1)))
+            targets.update(choreography.build_targets(cue, progress, 60.0 / max(features.tempo, 60),
+                                                      features.until_drop))
+        return targets
+
     def _ranked(self):
         """Strip names, longest first"""
         return [board.board for board in sorted(self.boards.values(), key=lambda b: -b.config["N_PIXELS"])]
@@ -249,15 +395,27 @@ class Director:
         ranked = self._ranked()
         previous_lead = self.look["lead"]
         split_after = None
-        if reason == "build":
-            lead = self._pick(BUILD_EFFECTS, features, previous_lead)
+        style = self._style()
+        if reason == "drop":
+            self.snap += 1
+            self.freestyle_hits = self.rng.choice(FREESTYLE_HITS["peak"])
+        if style == "freestyle" and reason != "split":
+            self.freestyle_shape = self.rng.choice(FREESTYLE_SHAPES)
+            strips = dict.fromkeys(ranked, "Freestyle")
+            lead = "Freestyle"
+            split_after = UNISON_AFTER_DROP_BEATS if reason == "drop" else None
+        elif reason == "build":
+            lead = self._pick(BUILD_EFFECTS if style == "mixed" else BUILD_EFFECTS[:2], features, previous_lead)
             strips = dict.fromkeys(ranked, lead)
         elif reason == "split":
             # Same lead effect for continuity, everyone else goes their own way
             lead = previous_lead
-            strips = self._cast(lead, ranked, features)
+            strips = self._cast(lead, ranked, features) if style != "freestyle" else dict.fromkeys(ranked, lead)
         else:
-            lead = self._pick(DROP_EFFECTS if reason == "drop" else POOLS[self.tier], features, previous_lead)
+            pool = DROP_EFFECTS if reason == "drop" else POOLS[self.tier]
+            if style == "mixed":
+                pool = pool + ["Freestyle"]
+            lead = self._pick(pool, features, previous_lead)
             unison = reason == "drop" or (self.tier != "calm" and self.rng.random() < UNISON_CHANCE)
             if unison:
                 strips = dict.fromkeys(ranked, lead)
@@ -292,15 +450,23 @@ class Director:
         def weight(effect):
             if effect == avoid:
                 return 0.1
-            base = 1.0 + 2.0 * features.groove_strength if effect == "Scroll" else 1.0
+            if effect == "Freestyle":
+                base = FREESTYLE_LEAD_WEIGHT[self.tier]
+            elif effect == "Scroll":
+                base = 1.0 + 2.0 * features.groove_strength
+            else:
+                base = 1.0
             # Effects used a lot lately are less likely, so no one effect takes over
             return base / (1.0 + 2.0 * self.usage.get(effect, 0.0))
         return self.rng.choices(pool, weights=[weight(e) for e in pool])[0]
 
     def _cast(self, lead, ranked, features):
-        """The lead effect on the longest strip, a different effect on each of the others"""
+        """The lead effect on the longest strip, a different effect on each of the others.
+        A Freestyle lead may have a Freestyle answering it on the next strip"""
         others = [e for e in POOLS[self.tier] if e != lead]
         self.rng.shuffle(others)
+        if lead == "Freestyle" and self.tier != "calm" and self.rng.random() < 0.5:
+            others.insert(0, "Freestyle")
         strips = {}
         for i, name in enumerate(ranked):
             if i == 0:
@@ -316,7 +482,9 @@ class Director:
         assignment = Assignment(effect, transition=self.transition)
         options = copy.deepcopy(board.effectConfig.get(assignment.config_key, {}))
         if "color_mode" in options:
-            leads = board.board == self._ranked()[0] or effect == self.look["lead"]
+            first = board.board == self._ranked()[0]
+            # In a planned show only the longest strip leads; otherwise strips sharing the lead effect do
+            leads = first if self.cue is not None else first or effect == self.look["lead"]
             options["color_mode"] = self.palette if leads else self.support_palette
         options.update(self._tuned(effect, features))
         assignment.options = options

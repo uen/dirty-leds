@@ -39,6 +39,7 @@ parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.R
 parser.add_argument("track", help="file in music/")
 parser.add_argument("--config", default="rooms/flat.json", help="room to render (default %(default)s)")
 parser.add_argument("--seed", type=int, default=1, help="random seed for the show's choices")
+parser.add_argument("--style", choices=["mixed", "freestyle", "effects"], help="show style (default: the config's)")
 parser.add_argument("--out", help="image path (default music/.reports/<track>.png)")
 args = parser.parse_args()
 os.environ["DIRTY_LEDS_CONFIG"] = args.config
@@ -65,6 +66,8 @@ def render(track):
     for board in main.boards.values():
         board.esp._ip, board.esp._port = "127.0.0.1", 9
         board.config["current_effect"] = "Auto"
+        if args.style:
+            board.effectConfig["Auto"]["style"] = args.style
     raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", os.path.join(MUSIC_DIR, track), "-f", "s16le",
                           "-ac", "1", "-ar", str(config.settings["configuration"]["MIC_RATE"]), "-"],
                          capture_output=True, check=True).stdout
@@ -73,12 +76,22 @@ def render(track):
     frames = min(len(audio) // hop, analysis.frames)
 
     looks = []
-    new_look = main.director._new_look
+    new_look, cast_cue = main.director._new_look, main.director._cast_cue
+
+    def remember(reason):
+        look = main.director.look
+        looks.append((main.audio.track_frame, reason, dict(look["strips"]),
+                      look.get("signature") or "/".join(sorted(set(look["strips"].values())))))
 
     def record(reason, features):
         new_look(reason, features)
-        looks.append((main.audio.track_frame, reason, dict(main.director.look["strips"])))
+        remember(reason)
+
+    def record_cue(cue, features):
+        cast_cue(cue, features)
+        remember("drop" if cue.kind == "drop" else cue.kind)
     main.director._new_look = record
+    main.director._cast_cue = record_cue
 
     strips = {name: np.zeros((frames, board.config["N_PIXELS"], 3), dtype=np.uint8) for name, board in main.boards.items()}
     for frame in range(frames):
@@ -115,8 +128,12 @@ def score(analysis, strips, looks, frames):
         if FPS <= drop < frames - FPS // 2:
             jumps.append(energy[drop:drop + FPS // 2].mean() / max(energy[drop - FPS:drop - FPS // 4].mean(), 1e-6))
     if jumps:
-        check("drop hit", f"{np.mean(jumps):.1f}x", ">= 2x", np.mean(jumps) >= 2,
+        check("drop hit", f"{np.mean(jumps):.1f}x", ">= 5x", np.mean(jumps) >= 5,
               "brightness in the half second after drops vs the second before")
+    landings = [energy[d:d + 2 * FPS].mean() for d in analysis.drops if d + 2 * FPS < frames]
+    if len(landings) >= 2:
+        check("escalation", " -> ".join(f"{x:.2f}" for x in landings), "last >= first",
+              landings[-1] >= 0.95 * landings[0], "brightness in the 2 s after each drop, in order")
 
     # How different the light is in the two seconds after a moment vs before it
     window = 2 * FPS
@@ -152,14 +169,20 @@ def score(analysis, strips, looks, frames):
     jitter = float(flips.mean())
     check("jitter", f"{jitter:.1%}", "<= 2%", jitter <= 0.02, "LEDs flipping brighter/darker frame to frame")
 
-    effects = {e for _, _, s in looks for e in s.values()}
-    unison_time = 0
-    for i, (start, _, s) in enumerate(looks):
-        end = looks[i + 1][0] if i + 1 < len(looks) else frames
-        if len(set(s.values())) == 1:
-            unison_time += end - start
-    check("variety", f"{len(effects)} effects, {unison_time / frames:.0%} unison", ">= 5, <= 40%",
-          len(effects) >= 5 and unison_time / frames <= 0.4, "distinct effects, share of time all strips match")
+    effects = {e for _, _, s, _ in looks for e in s.values()}
+    signatures = {sig for _, _, _, sig in looks}
+    # Strips "match" when their light looks alike: similar colour and brightness over time
+    names = list(strips)
+    alike = 0.0
+    if len(names) > 1:
+        means = np.stack([strips[n].astype(np.float32).mean(axis=1) for n in names])  # strips x frames x 3
+        spread = np.abs(means - means.mean(axis=0, keepdims=True)).mean(axis=(0, 2))
+        alike = float((spread < 6).mean())
+    # About one new look every 20 s, at least 2
+    wanted = max(2, int(frames / FPS / 20))
+    check("variety", f"{len(signatures)} looks, {len(effects)} effects, {alike:.0%} alike",
+          f">= {wanted} looks, <= 40%", len(signatures) >= wanted and alike <= 0.4,
+          "distinct looks, share of time all strips look alike")
 
     # Longest stretch where the light's overall look (2 s averages) doesn't visibly
     # change. Calm parts may sit still for longer than grooves and peaks
@@ -178,11 +201,14 @@ def score(analysis, strips, looks, frames):
     check("fresh", f"{longest['moving']} s grooves/peaks, {longest['calm']} s calm", "<= 12 s, <= 20 s",
           longest["moving"] <= 12 and longest["calm"] <= 20, "longest stretch without a visible change")
 
+    # Freestyle changes its look from scene to scene, so it counts per scene rather than as one effect
+    def kind(effect, signature):
+        return f"Freestyle ({signature})" if effect == "Freestyle" else effect
     usage = {}
-    for i, (start, _, s) in enumerate(looks):
+    for i, (start, _, s, sig) in enumerate(looks):
         end = looks[i + 1][0] if i + 1 < len(looks) else frames
         for effect in s.values():
-            usage[effect] = usage.get(effect, 0) + end - start
+            usage[kind(effect, sig)] = usage.get(kind(effect, sig), 0) + end - start
     if usage:
         top_effect = max(usage, key=usage.get)
         share = usage[top_effect] / sum(usage.values())
@@ -191,9 +217,10 @@ def score(analysis, strips, looks, frames):
         worst = (None, None, 0.0)
         for name in strips:
             per = {}
-            for i, (start, _, s) in enumerate(looks):
+            for i, (start, _, s, sig) in enumerate(looks):
                 end = looks[i + 1][0] if i + 1 < len(looks) else frames
-                per[s.get(name)] = per.get(s.get(name), 0) + end - start
+                key = kind(s.get(name), sig)
+                per[key] = per.get(key, 0) + end - start
             effect = max(per, key=per.get)
             if per[effect] / frames > worst[2]:
                 worst = (name, effect, per[effect] / frames)
@@ -245,7 +272,7 @@ def draw(track, analysis, strips, looks, frames, energy, intensity, path):
     top.plot(t, energy / max(energy.max(), 1e-6), color="#7fd3ff", lw=1, label="light energy")
     for drop in analysis.drops:
         top.axvline(drop / FPS, color="white", lw=1.2)
-    for start, reason, _ in looks:
+    for start, reason, _, _ in looks:
         top.axvline(start / FPS, ymin=0.9, ymax=1, color="#ff7a6b" if reason == "drop" else "#8d9097", lw=1)
     top.set_ylim(0, 1.05)
     top.legend(loc="upper left", fontsize=7, facecolor="#232428", labelcolor="#e9e7e2", framealpha=0.8)
@@ -276,7 +303,8 @@ def main_():
     print(f"\n{args.track}: {frames / FPS:.0f} s, {len(looks)} looks, room {args.config}\n")
     for name, value, target, ok, detail in checks:
         print(f"  {'ok  ' if ok else 'FAIL'}  {name:<9} {value:<28} target {target:<14} {detail}")
-    path = args.out or os.path.join(MUSIC_DIR, ".reports", os.path.splitext(os.path.basename(args.track))[0] + ".png")
+    name = os.path.splitext(os.path.basename(args.track))[0] + (f" ({args.style})" if args.style else "")
+    path = args.out or os.path.join(MUSIC_DIR, ".reports", name + ".png")
     draw(args.track, analysis, strips, looks, frames, energy, intensity, path)
     print(f"\n  lightogram: {path}")
 

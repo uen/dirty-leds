@@ -71,6 +71,9 @@ class Visualizer():
         from effects.sparkle import Sparkle
         self.effects["Sparkle"] = Sparkle(self)
 
+        from effects.freestyle import Freestyle
+        self.effects["Freestyle"] = Freestyle(self)
+
         from effects.sleep import Sleep
         self.effects["Sleep"] = Sleep(self)
 
@@ -133,8 +136,12 @@ class Visualizer():
                                                   ["spark_color", "Spark colour", "dropdown", config.settings["colors"]],
                                                   ["density", "Density", "float_slider", (0.01, 0.3, 0.01)],
                                                   ["fade", "Fade (s)", "float_slider", (0.05, 1.0, 0.05)]],
+                                    "Freestyle": [["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
+                                                  ["shape", "Shape", "dropdown", ["mirror", "linear", "room"]],
+                                                  ["level", "Level", "float_slider", (0.2, 1.5, 0.05)]],
                                         "Auto": [
-                                                    ["bars", "Bars per look", "slider", (4, 32, 4)]
+                                                    ["bars", "Bars per look", "slider", (4, 32, 4)],
+                                                    ["style", "Show style", "dropdown", ["mixed", "freestyle", "effects"]]
                                                 ],
                                    "Wavelength":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["roll_speed", "Roll Speed", "slider", (0,8,1)],
