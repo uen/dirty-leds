@@ -81,7 +81,7 @@ Press **Auto show** in the web interface and the app directs every strip itself.
 * **System audio with lookahead** routes whatever the computer plays (Spotify, a browser...) through the app and plays it on to your speakers 8 seconds late (`"lookahead": 8` in config.json). The show hears it first, so live music gets the same builds and drops after the first ~25 seconds of each song. Your normal output comes back when you switch away or stop the app.
 * **Mic and plain system audio** react live: drops land on the bass coming in, but there is no darkness before them.
 
-Auto's settings have a show style: `mixed` (default), `freestyle` or `effects`.
+Auto's settings have a show style: `mixed` (default), `freestyle` or `effects`. Scenes mostly put every strip on one effect together, sometimes split them up, and sometimes light one strip at a time, passing it around the room on the beat.
 
 To judge a show without watching it, render it to an image and a score card:
 ```

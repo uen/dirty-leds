@@ -71,6 +71,18 @@ class Visualizer():
         from effects.sparkle import Sparkle
         self.effects["Sparkle"] = Sparkle(self)
 
+        from effects.wipe import Wipe
+        self.effects["Wipe"] = Wipe(self)
+
+        from effects.bounce import Bounce
+        self.effects["Bounce"] = Bounce(self)
+
+        from effects.stack import Stack
+        self.effects["Stack"] = Stack(self)
+
+        from effects.bloom import Bloom
+        self.effects["Bloom"] = Bloom(self)
+
         from effects.freestyle import Freestyle
         self.effects["Freestyle"] = Freestyle(self)
 
@@ -136,6 +148,19 @@ class Visualizer():
                                                   ["spark_color", "Spark colour", "dropdown", config.settings["colors"]],
                                                   ["density", "Density", "float_slider", (0.01, 0.3, 0.01)],
                                                   ["fade", "Fade (s)", "float_slider", (0.05, 1.0, 0.05)]],
+                                         "Wipe": [["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
+                                                  ["colours", "Colours to step through", "slider", (2, 16, 1)],
+                                                  ["speed", "Wipe length (beats)", "float_slider", (0.1, 1.0, 0.05)],
+                                                  ["direction", "From", "dropdown", ["centre", "left", "right"]]],
+                                       "Bounce": [["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
+                                                  ["size", "Block size", "float_slider", (0.02, 0.3, 0.01)],
+                                                  ["trail", "Trail (s)", "float_slider", (0.05, 1.5, 0.05)]],
+                                        "Stack": [["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
+                                                  ["segments", "Segments", "dropdown", [4, 8, 16]],
+                                                  ["mirror", "Mirror", "checkbox"]],
+                                        "Bloom": [["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
+                                                  ["size", "Bloom size", "float_slider", (0.2, 1.0, 0.05)],
+                                                  ["decay", "Fade (s)", "float_slider", (0.1, 1.0, 0.05)]],
                                     "Freestyle": [["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                   ["shape", "Shape", "dropdown", ["mirror", "linear", "room"]],
                                                   ["level", "Level", "float_slider", (0.2, 1.5, 0.05)]],

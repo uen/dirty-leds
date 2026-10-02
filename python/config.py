@@ -49,6 +49,10 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                    "spark_color": "White",
                                                    "density": 0.06,                 # Share of the strip lit per hit, at full intensity
                                                    "fade": 0.25},                   # Seconds for a sparkle to fade
+                                     "Wipe":      {"color_mode": "Dancefloor", "colours": 4, "speed": 0.5, "direction": "centre"},
+                                     "Bounce":    {"color_mode": "Spectral", "size": 0.08, "trail": 0.15},
+                                     "Stack":     {"color_mode": "Sunny", "segments": 4, "mirror": True},
+                                     "Bloom":     {"color_mode": "Dancefloor", "size": 0.8, "decay": 0.35},
                                      "Freestyle": {"color_mode": "Dancefloor",      # Palette for every layer
                                                    "shape": "mirror",               # mirror, linear, or room (across strips by layout)
                                                    "level": 1.0,                    # Overall level of the layers

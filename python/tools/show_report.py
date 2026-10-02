@@ -204,7 +204,7 @@ def score(analysis, strips, looks, frames):
     # About one new look every 20 s, at least 2
     wanted = max(2, int(frames / FPS / 20))
     check("variety", f"{len(signatures)} looks, {len(effects)} effects, {alike:.0%} alike",
-          f">= {wanted} looks, <= 40%", len(signatures) >= wanted and alike <= 0.4,
+          f">= {wanted} looks, <= 80%", len(signatures) >= wanted and alike <= 0.8,
           "distinct looks, share of time all strips look alike")
 
     # Longest stretch where the light's overall look (2 s averages) doesn't visibly
