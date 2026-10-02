@@ -6,11 +6,12 @@ import json
 import os
 
 effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur to apply
+                                                   "color_mode": "Dancefloor",      # Bass, mids and treble take colours from this
                                                    "scale":0.9,                     # Width of effect on strip
-                                                   "r_multiplier": 1.0,             # How much red
+                                                   "r_multiplier": 1.0,             # How far the bass bar reaches
                                                    "mirror": True,                  # Reflect output down centre of strip
-                                                   "g_multiplier": 1.0,             # How much green
-                                                   "b_multiplier": 1.0},            # How much blue
+                                                   "g_multiplier": 1.0,             # How far the mids bar reaches
+                                                   "b_multiplier": 1.0},            # How far the treble bar reaches
                                      "Wave":      {"wipe_len":7,                    # Initial length before beat
                                                    "color_mode": "Spectral",        # Color of gradient
                                                    "fade": 0.35,                    # Seconds for the flash to fade
@@ -24,7 +25,7 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                    "mirror": False,                 # Reflect output down centre of strip
                                                    "reverse_grad": False,           # Flip (LR) gradient
                                                    "reverse_roll": False,           # Reverse movement of gradient roll
-                                                   "blur": 1.0,                     # Amount of blur to apply
+                                                   "blur": 2.0,                     # Amount of blur to apply
                                                    "flip_lr":False},                # Flip output left-right
                                      "Scroll":    {"lows_color": "Red",             # Colour of low frequencies
                                                    "mids_color": "Green",           # Colour of mid frequencies

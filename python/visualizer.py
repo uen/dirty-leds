@@ -107,12 +107,13 @@ class Visualizer():
         for key in self.effects.keys():
             allEffects[key] = key
 
-        self.dynamic_effects_config = {"Energy":[["blur", "Blur", "float_slider", (0.1,4.0,0.1)],
+        self.dynamic_effects_config = {"Energy":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
+                                                 ["blur", "Blur", "float_slider", (0.1,4.0,0.1)],
                                                  ["scale", "Scale", "float_slider", (0.4,1.0,0.05)],
-                                                 ["r_multiplier", "Red", "float_slider", (0.05,1.0,0.05)],
+                                                 ["r_multiplier", "Bass reach", "float_slider", (0.05,1.0,0.05)],
                                                  ["mirror", "Mirror", "checkbox"],
-                                                 ["g_multiplier", "Green", "float_slider", (0.05,1.0,0.05)],
-                                                 ["b_multiplier", "Blue", "float_slider", (0.05,1.0,0.05)]],
+                                                 ["g_multiplier", "Mids reach", "float_slider", (0.05,1.0,0.05)],
+                                                 ["b_multiplier", "Treble reach", "float_slider", (0.05,1.0,0.05)]],
                                          "Wave":[["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                  ["wipe_len", "Wave Start Length", "slider", (0,self.board.config["N_PIXELS"]//4,1)],
                                                  ["wipe_speed", "Wave Speed", "slider", (1,10,1)],
