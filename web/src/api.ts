@@ -36,6 +36,14 @@ export interface AudioSource {
   analysed?: boolean;
 }
 
+/** A repeating rhythm: hit strength per sixteenth step of a bar */
+export interface GroovePattern {
+  pattern: number[];
+  accents: number[];
+  strength: number;
+  reliable: boolean;
+}
+
 /** Whether the show can see what's coming in the current source */
 export interface Analysis {
   status: "live" | "none" | "queued" | "analysing" | "ready" | "failed";
@@ -43,10 +51,10 @@ export interface Analysis {
   error?: string;
   duration?: number;
   tempo?: number;
-  sections?: { start: number; end: number; tier: "calm" | "groove" | "peak" }[];
+  sections?: { start: number; end: number; tier: "calm" | "groove" | "peak"; groove: GroovePattern | null }[];
   drops?: number[];
-  /** The song's repeating rhythm: hit strength per sixteenth step of a bar */
-  groove?: { pattern: number[]; accents: number[]; strength: number; reliable: boolean };
+  /** The whole song's repeating rhythm; sections may have their own */
+  groove?: GroovePattern;
 }
 
 export interface Furniture {

@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import type { Analysis, AudioSource, State } from "../api";
+import { useRef, useState } from "react";
+import type { Analysis, AudioSource, GroovePattern as GroovePatternData, State } from "../api";
 import { useFrame, type FrameBus } from "../frames";
 import type { RunAction } from "../hooks/useLedApp";
 
@@ -77,7 +77,7 @@ function ShowMode({ analysis, frames }: { analysis: Analysis; frames: FrameBus }
           <p><strong>Pre-analysed.</strong> {analysis.tempo} bpm, {analysis.drops?.length ?? 0} drops. The show sees what's coming.</p>
           <TrackMap analysis={analysis} frames={frames} />
           <Upcoming frames={frames} />
-          {analysis.groove?.reliable && <GroovePattern groove={analysis.groove} frames={frames} />}
+          <SectionGroove analysis={analysis} frames={frames} />
         </div>
       );
     case "queued":
@@ -143,8 +143,21 @@ function Upcoming({ frames }: { frames: FrameBus }) {
   return <p ref={text} className="upcoming" aria-live="off" />;
 }
 
-/** The song's repeating rhythm as 16 steps, the current one lit */
-function GroovePattern({ groove, frames }: { groove: NonNullable<Analysis["groove"]>; frames: FrameBus }) {
+/** The groove of the section that is playing; sections each have their own */
+function SectionGroove({ analysis, frames }: { analysis: Analysis; frames: FrameBus }) {
+  const [index, setIndex] = useState(-1);
+  useFrame(frames, ({ position }) => {
+    if (position === null || !analysis.sections) return;
+    const current = analysis.sections.findIndex((s) => position >= s.start && position < s.end);
+    if (current !== index) setIndex(current);
+  });
+  const groove = analysis.sections?.[index]?.groove;
+  if (!groove?.reliable) return <p className="hint groove-none">No steady groove in this section</p>;
+  return <GroovePattern key={index} groove={groove} frames={frames} />;
+}
+
+/** A repeating rhythm as 16 steps, the current one lit */
+function GroovePattern({ groove, frames }: { groove: GroovePatternData; frames: FrameBus }) {
   const dots = useRef<(HTMLSpanElement | null)[]>([]);
   const lit = useRef(-1);
   useFrame(frames, ({ step }) => {

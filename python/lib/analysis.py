@@ -10,8 +10,8 @@ lands. For a file the whole song can be analysed up front instead:
                 onsets, which follows small tempo drifts
     sections    calm / groove / peak parts, boundaries snapped to beats, drops
                 pinned to the hit where the bass comes in
-    groove      the song's repeating rhythm: hits averaged over every bar at
-                sixteenth-note steps, so effects can play the pattern back
+    groove      the repeating rhythm of each section: hits averaged over its bars
+                at sixteenth-note steps, so effects can play the pattern back
 
 Analysis runs in a separate process (it would otherwise compete with the live
 loop for Python's GIL) and is cached in music/.analysis, so each file is only
@@ -35,7 +35,7 @@ from lib.audio import MUSIC_DIR, list_tracks
 from lib.features import (BASS, INTENSITY_BASS, PREFERRED_TEMPO, SILENCE_DBFS, TEMPO_RANGE, WINDOW,
                           _band)
 
-ANALYSIS_VERSION = 2
+ANALYSIS_VERSION = 3
 CACHE_DIR = os.path.join(MUSIC_DIR, ".analysis")
 TIERS = ("calm", "groove", "peak")
 TIER_START = (0.35, 0.72)
@@ -57,16 +57,30 @@ class Section:
 
 
 @dataclass
-class Groove:
-    pattern: np.ndarray  # how hard each of the 16 steps of a bar is hit, 0-1
+class Pattern:
+    pattern: list  # how hard each of the 16 steps of a bar is hit, 0-1
     accents: list  # steps the pattern hits
     strength: float  # 0-1, how closely the bars follow the pattern
-    hits: np.ndarray  # per frame: an accent of the pattern lands here
-    steps: np.ndarray  # per frame: step of the bar, -1 where unknown
 
     @property
     def reliable(self):
         return self.strength >= MIN_GROOVE_STRENGTH
+
+    def to_dict(self):
+        return {"pattern": [round(float(v), 2) for v in self.pattern], "accents": self.accents,
+                "strength": round(self.strength, 2), "reliable": self.reliable}
+
+
+@dataclass
+class Groove:
+    song: Pattern  # the whole song's pattern, used where a section is too short to learn its own
+    sections: list  # per section: its Pattern, or None for calm sections
+    hits: np.ndarray  # per frame: an accent of that section's pattern lands here
+    steps: np.ndarray  # per frame: step of the bar, -1 where unknown
+
+    def at_section(self, index):
+        pattern = self.sections[index] if index < len(self.sections) else None
+        return pattern if pattern is not None else None
 
 
 class TrackAnalysis:
@@ -114,8 +128,8 @@ class TrackAnalysis:
             "until_drop": (next_drop - frame) / self.fps
             if next_drop is not None and self.section_index[next_drop] == self.section_index[frame] + 1 else None,
             "position": frame / self.fps,
-            "groove_hit": bool(self.groove.reliable and self.groove.hits[frame]),
-            "groove_strength": self.groove.strength,
+            "groove_hit": bool(self.groove.hits[frame]),
+            "groove_strength": self._groove_strength(index),
             "bar_step": int(self.groove.steps[frame]),
             # The next section, for the countdown in the web interface
             "upcoming": None if following is None else {
@@ -125,35 +139,38 @@ class TrackAnalysis:
             },
         }
 
+    def _groove_strength(self, index):
+        pattern = self.groove.at_section(index)
+        return pattern.strength if pattern is not None and pattern.reliable else 0.0
+
     def summary(self):
         return {
             "duration": self.frames / self.fps,
             "tempo": round(self.tempo, 1),
-            "sections": [{"start": s.start / self.fps, "end": s.end / self.fps, "tier": s.tier} for s in self.sections],
+            "sections": [{"start": s.start / self.fps, "end": s.end / self.fps, "tier": s.tier,
+                          "groove": None if self.groove.at_section(i) is None else self.groove.at_section(i).to_dict()}
+                         for i, s in enumerate(self.sections)],
             "drops": [d / self.fps for d in self.drops],
-            "groove": {
-                "pattern": [round(float(v), 2) for v in self.groove.pattern],
-                "accents": self.groove.accents,
-                "strength": round(self.groove.strength, 2),
-                "reliable": self.groove.reliable,
-            },
+            "groove": self.groove.song.to_dict(),
         }
 
     def save(self, path):
         np.savez_compressed(path, intensity=self.intensity, beats=self.beat_frames,
                             sections=np.array([[s.start, s.end, TIERS.index(s.tier)] for s in self.sections]),
-                            groove_pattern=self.groove.pattern, groove_hits=self.groove.hits,
-                            groove_steps=self.groove.steps,
+                            groove_hits=self.groove.hits, groove_steps=self.groove.steps,
                             meta=json.dumps({"fps": self.fps, "tempo": self.tempo,
-                                             "groove_accents": self.groove.accents,
-                                             "groove_strength": self.groove.strength}))
+                                             "groove_song": self.groove.song.to_dict(),
+                                             "groove_sections": [None if p is None else p.to_dict()
+                                                                 for p in self.groove.sections]}))
 
     @classmethod
     def load(cls, path):
         data = np.load(path)
         meta = json.loads(str(data["meta"]))
         sections = [Section(int(a), int(b), TIERS[int(t)]) for a, b, t in data["sections"]]
-        groove = Groove(data["groove_pattern"], meta["groove_accents"], meta["groove_strength"],
+        def pattern(d):
+            return None if d is None else Pattern(d["pattern"], d["accents"], d["strength"])
+        groove = Groove(pattern(meta["groove_song"]), [pattern(d) for d in meta["groove_sections"]],
                         data["groove_hits"], data["groove_steps"])
         return cls(meta["fps"], data["intensity"], data["beats"], sections, meta["tempo"], groove)
 
@@ -327,23 +344,39 @@ def _sections(intensity, bass_share, beats, tempo, fps):
     return [Section(a, b, TIERS[t]) for a, b, t in runs]
 
 
+def _pattern(bars):
+    """Average pattern of complete bars (rows of 16 step strengths), or None if too few"""
+    complete = np.array([bar for bar in bars if not np.isnan(bar).any()])
+    if len(complete) < 4:
+        return None
+    pattern = complete.mean(axis=0)
+    # How closely each bar follows the average pattern
+    centred = complete - complete.mean(axis=1, keepdims=True)
+    reference = pattern - pattern.mean()
+    correlation = (centred @ reference) / (np.linalg.norm(centred, axis=1) * np.linalg.norm(reference) + 1e-9)
+    pattern = pattern / (pattern.max() + 1e-9)
+    threshold = pattern.mean() + 0.5 * pattern.std()
+    accents = sorted(int(i) for i in np.argsort(-pattern)[:8] if pattern[i] >= threshold)
+    return Pattern(list(pattern), accents, float(np.clip(np.mean(correlation), 0, 1)))
+
+
 def _groove(onset, beats, sections, frames):
-    """The rhythm the song repeats bar after bar, at sixteenth-note steps
+    """The rhythm each section repeats bar after bar, at sixteenth-note steps
 
     Bars are counted from the first drop's beat, since drops land on the one.
-    Each step's hit strength is averaged over every bar in the groove and peak
-    sections; the steps hit clearly harder than average are the accents.
+    Each groove or peak section averages the hit strength at each step over
+    its own bars; the steps hit clearly harder than average are its accents.
+    Sections too short to learn from use the whole song's pattern.
     """
     hits = np.zeros(frames, dtype=bool)
     steps = np.full(frames, -1, dtype=np.int8)
-    empty = Groove(np.zeros(STEPS_PER_BAR), [], 0.0, hits, steps)
+    empty = Groove(Pattern([0.0] * STEPS_PER_BAR, [], 0.0), [None] * len(sections), hits, steps)
     if len(beats) < 2 * 4 + 1:
         return empty
-    active = np.zeros(frames, dtype=bool)
+    section_of = np.zeros(frames, dtype=np.int32)
     starts = []
     for i, section in enumerate(sections):
-        if section.tier != "calm":
-            active[section.start:section.end] = True
+        section_of[section.start:section.end] = i
         if section.tier == "peak" and i > 0 and TIERS.index(sections[i - 1].tier) < 2:
             starts.append(section.start)
     anchor = int(np.argmin(np.abs(beats - starts[0]))) if starts else 0
@@ -358,36 +391,34 @@ def _groove(onset, beats, sections, frames):
             bar_numbers.append((k - anchor) // 4)
     step_frames = np.array(step_frames)
     step_numbers = np.array(step_numbers)
-    bar_numbers = np.array(bar_numbers)
+    span = int(np.ceil(np.median(np.diff(beats)) / STEPS_PER_BEAT)) + 1
     for frame, step in zip(step_frames.astype(int), step_numbers):
-        steps[frame:frame + int(np.ceil(np.median(np.diff(beats)) / STEPS_PER_BEAT)) + 1] = step
+        steps[frame:frame + span] = step
 
     # Strongest onset within an eighth of a beat of each step
     reach = max(1, int(np.median(np.diff(beats)) / 8))
     strength = np.array([onset[max(0, int(f) - reach):int(f) + reach + 1].max() for f in step_frames])
+    step_section = section_of[np.clip(step_frames.astype(int), 0, frames - 1)]
 
-    in_groove = active[np.clip(step_frames.astype(int), 0, frames - 1)]
+    # Bars per section (a bar belongs to the section its first step is in)
     bars = {}
-    for bar, step, value, ok in zip(bar_numbers, step_numbers, strength, in_groove):
-        if ok:
-            bars.setdefault(bar, np.full(STEPS_PER_BAR, np.nan))[step] = value
-    complete = np.array([b for b in bars.values() if not np.isnan(b).any()])
-    if len(complete) < 4:
-        return empty
-    pattern = complete.mean(axis=0)
-    # How closely each bar follows the average pattern
-    centred = complete - complete.mean(axis=1, keepdims=True)
-    reference = pattern - pattern.mean()
-    correlation = (centred @ reference) / (np.linalg.norm(centred, axis=1) * np.linalg.norm(reference) + 1e-9)
-    groove_strength = float(np.clip(np.mean(correlation), 0, 1))
+    for bar, step, value, section in zip(bar_numbers, step_numbers, strength, step_section):
+        if sections[section].tier != "calm":
+            bars.setdefault(section, {}).setdefault(bar, np.full(STEPS_PER_BAR, np.nan))[step] = value
+    song = _pattern([bar for section_bars in bars.values() for bar in section_bars.values()]) or empty.song
+    patterns = []
+    for i, section in enumerate(sections):
+        if section.tier == "calm":
+            patterns.append(None)
+            continue
+        own = _pattern(list(bars.get(i, {}).values()))
+        patterns.append(own if own is not None else song)
 
-    pattern = pattern / (pattern.max() + 1e-9)
-    threshold = pattern.mean() + 0.5 * pattern.std()
-    accents = [int(i) for i in np.argsort(-pattern)[:8] if pattern[i] >= threshold]
-    for frame, step, ok in zip(step_frames, step_numbers, in_groove):
-        if ok and step in accents:
+    for frame, step, section in zip(step_frames, step_numbers, step_section):
+        pattern = patterns[section]
+        if pattern is not None and pattern.reliable and step in pattern.accents:
             hits[min(frames - 1, int(round(frame)))] = True
-    return Groove(pattern, sorted(accents), groove_strength, hits, steps)
+    return Groove(song, patterns, hits, steps)
 
 
 def cache_path(track):
