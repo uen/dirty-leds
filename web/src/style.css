@@ -322,6 +322,80 @@ input[type="checkbox"] {
   height: 56px;
 }
 
+.show-mode {
+  font-size: var(--step--1);
+  color: var(--text-dim);
+}
+
+.show-mode strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.show-mode[data-mode="ready"] strong {
+  color: var(--amber);
+}
+
+.show-mode[data-mode="failed"] strong {
+  color: var(--danger);
+}
+
+.track-map {
+  position: relative;
+  height: 18px;
+  margin-top: 0.4rem;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--raised);
+}
+
+.track-section {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.track-section[data-tier="calm"] {
+  background: #3b4a5c;
+}
+
+.track-section[data-tier="groove"] {
+  background: #7a6a3e;
+}
+
+.track-section[data-tier="peak"] {
+  background: var(--amber);
+}
+
+.track-drop {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--text);
+}
+
+.track-playhead {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+  box-shadow: 0 0 6px #fff;
+}
+
+.cue-tag {
+  margin-left: 0.4rem;
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-stretch: var(--condensed);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  vertical-align: 1px;
+}
+
 .meters {
   display: grid;
   gap: 0.35rem;

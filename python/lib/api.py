@@ -37,6 +37,23 @@ def setAudio(audio_input):
     _audio = audio_input
 
 
+def setLibrary(library):
+    global _library
+    _library = library
+
+
+def _analysis_state():
+    """Whether the show can see ahead: pre-analysed track, analysis running, or live"""
+    source = _audio.source
+    if not source.startswith("track:"):
+        return {"status": "live"}
+    track = source[len("track:"):]
+    analysis = _library.get(track)
+    if analysis is not None:
+        return {"status": "ready", **analysis.summary()}
+    return _library.status_of(track)
+
+
 def action(name):
     def wrapper(func):
         _actions[name] = func
@@ -118,7 +135,10 @@ def get_state():
         "audio": {
             "source": _audio.source,
             "error": _audio.error,
-            "sources": available_sources(),
+            "sources": [dict(source, analysed=source["id"].startswith("track:")
+                             and _library.get(source["id"][len("track:"):]) is not None)
+                        for source in available_sources()],
+            "analysis": _analysis_state(),
         },
         "room": _config.settings.get("room"),
         "devices": [_device_state(name, board) for name, board in _boards.items()],
@@ -252,6 +272,8 @@ def set_frequency(payload):
 @action("set-audio")
 def set_audio(payload):
     _audio.set_source(payload["source"])
+    if payload["source"].startswith("track:"):
+        _library.request(payload["source"][len("track:"):], first=True)
 
 
 @action("save-profile")

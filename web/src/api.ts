@@ -32,6 +32,19 @@ export interface AudioSource {
   id: string;
   label: string;
   kind: "live" | "track";
+  /** A track whose pre-analysis is ready */
+  analysed?: boolean;
+}
+
+/** Whether the show can see what's coming in the current source */
+export interface Analysis {
+  status: "live" | "none" | "queued" | "analysing" | "ready" | "failed";
+  progress?: number;
+  error?: string;
+  duration?: number;
+  tempo?: number;
+  sections?: { start: number; end: number; tier: "calm" | "groove" | "peak" }[];
+  drops?: number[];
 }
 
 export interface Furniture {
@@ -55,7 +68,7 @@ export interface State {
   brightness: number;
   currentProfile: string;
   profiles: { id: string; name: string }[];
-  audio: { source: string; error: string | null; sources: AudioSource[] };
+  audio: { source: string; error: string | null; sources: AudioSource[]; analysis: Analysis };
   room: Room | null;
   devices: Device[];
 }
@@ -68,6 +81,8 @@ export interface Frame {
   tempo: number;
   /** Running beat count; a change means a beat landed */
   beats: number;
+  /** Seconds into a pre-analysed track, otherwise null */
+  position: number | null;
 }
 
 export async function action(name: string, payload: Record<string, unknown>): Promise<string | null> {
@@ -101,7 +116,8 @@ export function connect(handlers: {
     const data = JSON.parse((event as MessageEvent).data);
     const leds: Record<string, Uint8Array> = {};
     for (const [name, encoded] of Object.entries<string>(data.leds)) leds[name] = decodeBase64(encoded);
-    handlers.onFrame({ leds, spectrum: data.spectrum, meters: data.meters, tempo: data.tempo, beats: data.beats });
+    handlers.onFrame({ leds, spectrum: data.spectrum, meters: data.meters, tempo: data.tempo, beats: data.beats,
+      position: data.position });
   });
   return events;
 }

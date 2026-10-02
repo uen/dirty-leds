@@ -16,6 +16,15 @@ MusicFeatures.update() takes one frame of samples and returns a Features with:
     section_change      True on the frame the song moves to a new part
     silent              True when there is no meaningful sound
 
+When the playing track has been pre-analysed (lib.analysis), intensity, beat,
+beat_phase, tempo and section_change come from that analysis instead, and:
+
+    prepared            True while those come from the pre-analysis
+    tier                "calm", "groove" or "peak": the section's energy
+    until_drop          seconds until the next drop, while in the stretch
+                        leading into one, otherwise None
+    position            seconds into the track
+
 Everything adapts to loudness, so the same song at any volume, or a quiet song
 next to a loud one, uses the full range. Time constants are in seconds.
 """
@@ -273,6 +282,10 @@ class Features:
     tempo: float = float(PREFERRED_TEMPO)
     section_change: bool = False
     silent: bool = True
+    prepared: bool = False
+    tier: str = None
+    until_drop: float = None
+    position: float = None
 
 
 def _band(freqs, low, high):

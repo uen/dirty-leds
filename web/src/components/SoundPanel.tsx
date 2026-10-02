@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { AudioSource, State } from "../api";
+import type { Analysis, AudioSource, State } from "../api";
 import { useFrame, type FrameBus } from "../frames";
 import type { RunAction } from "../hooks/useLedApp";
 
@@ -17,6 +17,7 @@ export function SoundPanel({ audio, run, frames }: { audio: State["audio"] | und
   return (
     <aside className="panel sound">
       <h2>Sound</h2>
+      {audio && <ShowMode analysis={audio.analysis} frames={frames} />}
       <Spectrum frames={frames} />
       <Meters frames={frames} />
       <div className="cues">
@@ -50,7 +51,10 @@ function CueGroup({ title, sources, current, onPlay, empty }: CueGroupProps) {
             return (
               <li key={source.id}>
                 <button className="cue" aria-pressed={active} onClick={() => onPlay(source)}>
-                  <span className="cue-label">{source.label.replace(/^test \/ /, "")}</span>
+                  <span className="cue-label">
+                    {source.label.replace(/^test \/ /, "")}
+                    {source.analysed && <span className="cue-tag" title="Pre-analysed: the show can see what's coming">mapped</span>}
+                  </span>
                   <span className="cue-state">{active ? (source.kind === "track" ? "Stop" : "On") : ""}</span>
                 </button>
               </li>
@@ -61,6 +65,64 @@ function CueGroup({ title, sources, current, onPlay, empty }: CueGroupProps) {
         <p className="hint">{empty}</p>
       )}
     </section>
+  );
+}
+
+/** Says whether the show is reacting live or following a pre-analysed map of the track */
+function ShowMode({ analysis, frames }: { analysis: Analysis; frames: FrameBus }) {
+  switch (analysis.status) {
+    case "ready":
+      return (
+        <div className="show-mode" data-mode="ready">
+          <p><strong>Pre-analysed.</strong> {analysis.tempo} bpm, {analysis.drops?.length ?? 0} drops. The show sees what's coming.</p>
+          <TrackMap analysis={analysis} frames={frames} />
+        </div>
+      );
+    case "queued":
+    case "analysing":
+      return (
+        <p className="show-mode" data-mode="analysing">
+          <strong>Analysing this track{analysis.status === "analysing" ? `, ${Math.round((analysis.progress ?? 0) * 100)}%` : ""}.</strong>{" "}
+          Reacting live until it's ready.
+        </p>
+      );
+    case "failed":
+      return (
+        <p className="show-mode" data-mode="failed">
+          <strong>Couldn't analyse this track</strong> ({analysis.error}). Reacting live.
+        </p>
+      );
+    default:
+      return (
+        <p className="show-mode" data-mode="live">
+          <strong>Live.</strong> Reacting as it hears, with no lookahead. Tracks from your music get pre-analysed.
+        </p>
+      );
+  }
+}
+
+/** The track's sections coloured by energy, drops marked, with a playhead */
+function TrackMap({ analysis, frames }: { analysis: Analysis; frames: FrameBus }) {
+  const playhead = useRef<HTMLSpanElement>(null);
+  const duration = analysis.duration ?? 1;
+
+  useFrame(frames, ({ position }) => {
+    if (playhead.current && position !== null) {
+      playhead.current.style.left = `${Math.min(100, (100 * position) / duration)}%`;
+    }
+  });
+
+  return (
+    <div className="track-map" role="img" aria-label="Sections of the track by energy, with drops marked">
+      {analysis.sections?.map((section) => (
+        <span key={section.start} className="track-section" data-tier={section.tier}
+          style={{ left: `${(100 * section.start) / duration}%`, width: `${(100 * (section.end - section.start)) / duration}%` }} />
+      ))}
+      {analysis.drops?.map((drop) => (
+        <span key={drop} className="track-drop" style={{ left: `${(100 * drop) / duration}%` }} />
+      ))}
+      <span ref={playhead} className="track-playhead" />
+    </div>
   );
 }
 

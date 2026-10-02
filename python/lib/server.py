@@ -38,6 +38,7 @@ class Broadcaster:
         self.spectrum = []
         self.meters = {}
         self.tempo = 0.0
+        self.position = None
         # A running count rather than a flag, so the page can't miss a beat between events
         self.beats = 0
         self._changed = threading.Condition()
@@ -52,6 +53,8 @@ class Broadcaster:
         self.spectrum = [round(float(v), 3) for v in features.bins]
         self.meters = {name: round(getattr(features, name), 3) for name in ("bass", "mid", "treble", "intensity")}
         self.tempo = round(features.tempo, 1)
+        # Seconds into a pre-analysed track, for the track map's playhead
+        self.position = None if features.position is None else round(features.position, 2)
         self.beats += features.beat
 
 
@@ -138,6 +141,7 @@ def make_handler(boards):
                             "meters": broadcaster.meters,
                             "tempo": broadcaster.tempo,
                             "beats": broadcaster.beats,
+                            "position": broadcaster.position,
                         })))
                     self.wfile.flush()
                     time.sleep(1.0 / FRAME_RATE)

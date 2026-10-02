@@ -68,6 +68,9 @@ class AudioInput:
         self.error = None
         self.on_change = on_change
         self._switch = threading.Event()
+        # The track playing and how many frames of it have been played (it loops)
+        self.track = None
+        self.track_frame = 0
 
     def set_source(self, source, trusted=False):
         """Switch source. Untrusted callers (the web UI) may only pick listed sources"""
@@ -99,9 +102,13 @@ class AudioInput:
         elif source == "system":
             self._run_command(self._system_capture_command())
         elif source.startswith("track:"):
-            path = os.path.join(MUSIC_DIR, source[len("track:"):])
-            self._run_command(self._file_decode_command(path), play=os.environ.get("DIRTY_LEDS_MUTE") != "1",
-                              paced=True)
+            self.track = source[len("track:"):]
+            self.track_frame = 0
+            try:
+                self._run_command(self._file_decode_command(os.path.join(MUSIC_DIR, self.track)),
+                                  play=os.environ.get("DIRTY_LEDS_MUTE") != "1", paced=True)
+            finally:
+                self.track = None
         elif source.startswith("pipe:"):
             self._run_pipe(source[len("pipe:"):])
 
@@ -201,6 +208,7 @@ class AudioInput:
                 if player:
                     player.stdin.write(chunk)
                 self.callback(np.frombuffer(chunk, dtype=np.int16).astype(np.float32))
+                self.track_frame += 1
         finally:
             source.kill()
             source.wait()

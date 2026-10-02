@@ -23,9 +23,12 @@ BEATS_TO_SETTLE = 2
 # A look is (main effect, its options), (supporting effect, its options).
 # Looks with the same effect on both put the whole room in unison
 # Only effects that move in a structured way (flowing, rolling, pulsing on the
-# beat); Sparkle and Power scatter random pixels, so the show leaves them out
+# beat); Sparkle and Power scatter random pixels, so the show leaves them out.
+# Some calm looks switch the supporting strips off, so drops light the room up
 LOOKS = {
     "calm": [
+        (("Wavelength", {"roll_speed": 1}), ("Off", {})),
+        (("Spectrum", {"blur": 2.0}), ("Off", {})),
         (("Wavelength", {"roll_speed": 1}), ("Spectrum", {"blur": 2.0})),
         (("Spectrum", {"blur": 2.0}), ("Wavelength", {"roll_speed": 1})),
         (("Scroll", {}), ("Wavelength", {})),
@@ -51,6 +54,14 @@ LOOKS = {
         (("Pulse", {}), ("Pulse", {})),
     ],
 }
+# The last bars before a known drop: everything together, tightening toward the hit
+BUILD_LOOKS = [
+    (("Scroll", {}), ("Scroll", {})),
+    (("Pulse", {}), ("Pulse", {})),
+    (("Scroll", {}), ("Pulse", {})),
+]
+BUILD_BEATS = 16
+
 PALETTES = {
     "calm": ["Ocean", "Sunset", "Peach", "Romantic"],
     "groove": ["Sunny", "Fruity", "Jungle", "Ocean", "Dancefloor", "Peach"],
@@ -88,6 +99,9 @@ class Director:
         self.transition = 0.5
         self.generation = 0
         self.assignments = {}
+        # Brightness for every strip on the show; dips to black just before a drop
+        self.level = 1.0
+        self.building = False
         # Set when any strip asked for an assignment since the last update
         self.requested = False
         self.rng = random.Random()
@@ -101,6 +115,11 @@ class Director:
             return
         self.requested = False
         features = self.music.current
+        if features.prepared:
+            self._follow_map(features)
+            return
+        self.level = 1.0
+        self.building = False
         tier = self._tier(features.intensity)
         if tier == self.tier:
             self.candidate = None
@@ -122,6 +141,39 @@ class Director:
             self.pending = "phrase"
         if self.pending and features.beat and (self.beats_in_look >= MIN_BEATS_PER_LOOK or self.pending == "drop"):
             self._new_look(self.pending, features)
+
+    def _follow_map(self, features):
+        """With a pre-analysed track: switch exactly at section starts, build into
+        drops that are coming, and black out for the last half beat before them"""
+        beat = 60.0 / max(features.tempo, 60)
+        if features.section_change or (features.tier != self.tier and not self.building):
+            rising = TIERS.index(features.tier) > TIERS.index(self.tier)
+            self.tier = features.tier
+            self.building = False
+            self.level = 1.0
+            self._new_look("drop" if self.tier == "peak" and rising else "section", features)
+            return
+        build_time = BUILD_BEATS * beat
+        if features.until_drop is not None and features.until_drop <= build_time:
+            if not self.building:
+                self.building = True
+                self._new_look("build", features)
+            self._ramp_build(1.0 - features.until_drop / build_time)
+            self.level = 0.05 if features.until_drop <= beat / 2 else 1.0
+            return
+        self.level = 1.0
+        self.beats_in_look += features.beat
+        if features.beat and self.beats_in_look >= 4 * self._phrase_bars():
+            self._new_look("phrase", features)
+
+    def _ramp_build(self, progress):
+        """Speed up and tighten the build look as the drop gets closer"""
+        for assignment in self.assignments.values():
+            if assignment.effect == "Scroll":
+                assignment.options["speed"] = 2 + round(8 * progress)
+                assignment.options["trail"] = 1.2 - 0.8 * progress
+            elif assignment.effect == "Pulse":
+                assignment.options["sharpness"] = 1.0 + 3.0 * progress
 
     def assignment(self, board):
         """The board's effect and options for this frame"""
@@ -148,9 +200,10 @@ class Director:
         return 16
 
     def _new_look(self, reason, features):
-        options = [look for look in LOOKS[self.tier] if look != self.look] or LOOKS[self.tier]
+        pool = BUILD_LOOKS if reason == "build" else LOOKS[self.tier]
+        options = [look for look in pool if look != self.look] or pool
         self.look = self.rng.choice(options)
-        if reason in ("start", "drop", "energy", "section") or self.rng.random() < 0.5:
+        if reason in ("start", "drop", "energy", "section") or (reason == "phrase" and self.rng.random() < 0.5):
             palettes = [p for p in PALETTES[self.tier] if p != self.palette] or PALETTES[self.tier]
             self.palette = self.rng.choice(palettes)
         # Cut straight in on a drop for impact, otherwise crossfade over a beat

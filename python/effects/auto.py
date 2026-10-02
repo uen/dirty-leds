@@ -26,7 +26,7 @@ class Auto(Effect):
             mix = 1 - self.blend_left / self.blend_frames
             output = self._render(board, self.previous, y) * (1 - mix) + output * mix
             self.blend_left -= 1
-        return output
+        return output * board.show.level
 
     @staticmethod
     def _render(board, assignment, y):

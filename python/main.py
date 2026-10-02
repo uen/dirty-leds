@@ -21,6 +21,7 @@ from lib.audio import AudioInput
 from lib.dsp import ExpFilter, DSP
 from lib.features import MusicFeatures
 from lib.director import Director
+from lib.analysis import Library
 from threading import Thread
 from visualizer import Visualizer
 
@@ -90,6 +91,7 @@ def analyse(audio_samples):
     """Audio analysis per board. Boards with the same frequency range share one analysis.
     Also updates the music features every board reads through Board.features"""
     music.update(audio_samples)
+    apply_prepared(music.current)
     director.update()
     results = {}
     for board in boards.values():
@@ -97,6 +99,18 @@ def analyse(audio_samples):
         if analyser not in results:
             results[analyser] = analyser.update(audio_samples)
     return {name: results[board.signalProcessor.analyser] for name, board in boards.items()}
+
+
+def apply_prepared(features):
+    """Swap in the pre-analysed intensity, beats and sections when the playing track has them"""
+    if audio is None or audio.track is None or library is None:
+        return
+    analysis = library.get(audio.track)
+    if analysis is None:
+        return
+    for name, value in analysis.at(audio.track_frame).items():
+        setattr(features, name, value)
+    features.prepared = True
 
 
 def lead_board():
@@ -141,6 +155,9 @@ def microphone_update(audio_samples):
 
 
 music = MusicFeatures()
+# Set by run(): the audio input and the library of pre-analysed tracks
+audio = None
+library = None
 boards = {}
 for board in config.settings["devices"]:
     boards[board] = Board(board)
@@ -159,9 +176,16 @@ def run(audio_source="off", host=None, port=None):
     api.setBoards(boards)
     api.setConfig(config)
 
+    global audio, library
+    library = Library(on_change=api.notify)
+    api.setLibrary(library)
     audio = AudioInput(microphone_update, on_change=api.notify)
     audio.set_source(audio_source, trusted=True)
     api.setAudio(audio)
+    if audio_source.startswith("track:"):
+        library.request(audio_source[len("track:"):], first=True)
+    # Analyse the rest of the music folder in the background, one track at a time
+    library.request_all()
 
     host = host or config.settings["server"]["host"]
     port = port or config.settings["server"]["port"]
