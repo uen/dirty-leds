@@ -46,7 +46,10 @@ export interface GroovePattern {
 
 /** Whether the show can see what's coming in the current source */
 export interface Analysis {
-  status: "live" | "none" | "queued" | "analysing" | "ready" | "failed";
+  status: "live" | "none" | "queued" | "analysing" | "ready" | "failed" | "lookahead";
+  /** Lookahead: seconds the audio is delayed by, and whether this song's plan is trusted yet */
+  delay?: number;
+  ready?: boolean;
   progress?: number;
   error?: string;
   duration?: number;

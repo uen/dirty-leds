@@ -94,7 +94,9 @@ def plan(analysis, style="mixed", seed=None):
         next_is_drop = i + 1 < len(sections) and sections[i + 1].start in drops
         is_drop = section.start in drops
         escalation = drop_order.get(section.start, 0)
-        final = is_drop and escalation == len(drops) - 1 and len(drops) > 1
+        # A partial analysis (lookahead) can't know which drop is the last
+        partial = getattr(analysis, "partial", False)
+        final = is_drop and escalation == len(drops) - 1 and len(drops) > 1 and not partial
 
         palette = FINAL_DROP_PALETTE if final else contrasting(section.tier, previous_palette)
         support_palette = contrasting(section.tier, palette)
@@ -114,8 +116,9 @@ def plan(analysis, style="mixed", seed=None):
         start = section.start
         if is_drop:
             drop_end = bars[DROP_BARS] if len(bars) > DROP_BARS else section.end
+            through = min(1.0, escalation / 3) if partial else escalation / max(len(drops) - 1, 1)
             cues.append(_drop_cue(start, min(drop_end, build_from), palette, support_palette, escalation, final,
-                                  escalation / max(len(drops) - 1, 1)))
+                                  through))
             start = min(drop_end, build_from)
 
         # Regular scenes of SCENE_BARS bars up to the build (or the section end)

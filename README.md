@@ -73,6 +73,21 @@ python3 main.py --audio system
 To control it from your phone, add `"server": {"host": "0.0.0.0"}` to `config.json`. Anyone on your network can then change the lights.
 
 
+**AUTO SHOW**
+
+Press **Auto show** in the web interface and the app directs every strip itself. How well it can plan depends on where the music comes from:
+
+* **Tracks in `python/music/`** are pre-analysed (a second or two, cached): the show knows the whole song, builds into drops, goes dark just before them and hits exactly on the beat they land on.
+* **System audio with lookahead** routes whatever the computer plays (Spotify, a browser...) through the app and plays it on to your speakers 8 seconds late (`"lookahead": 8` in config.json). The show hears it first, so live music gets the same builds and drops after the first ~25 seconds of each song. Your normal output comes back when you switch away or stop the app.
+* **Mic and plain system audio** react live: drops land on the bass coming in, but there is no darkness before them.
+
+Auto's settings have a show style: `mixed` (default), `freestyle` or `effects`.
+
+To judge a show without watching it, render it to an image and a score card:
+```
+python3 tools/show_report.py "song.mp3" [--live | --lookahead 8] [--looks]
+```
+
 **SIMULATOR**
 
 You don't need any LEDs to work on effects. The presets in `python/rooms/` are configs whose strips point at `127.0.0.1`, with a 3D layout of the room:

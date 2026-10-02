@@ -233,15 +233,25 @@ class Director:
     def _follow_plan(self, features):
         """With a pre-analysed track: play the show planned for it, cue by cue"""
         analysis = features.analysis
-        if self.plan_for is not analysis:
-            self.cues = choreography.plan(analysis, self._style(), seed=self.rng.random())
-            self.plan_for = analysis
-            self.cue = None
         frame = int(round(features.position * analysis.fps)) % analysis.frames
+        if self.plan_for is not analysis:
+            # A newer analysis (lookahead re-analyses the song as it arrives): re-plan
+            self.cues = choreography.plan(analysis, self._style(), seed=self.plan_seed(analysis))
+            self.plan_for = analysis
         cue = next((c for c in self.cues if c.start <= frame < c.end), self.cues[-1] if self.cues else None)
         if cue is None:
             return
+        # A scene that has started runs to its own end even if a re-plan moved things
+        # around; only a drop or build the new plan has found here interrupts it
+        if self.cue is not None and cue is not self.cue and self.cue.start <= frame < self.cue.end \
+                and not (cue.kind in ("drop", "build") and cue.kind != self.cue.kind):
+            cue = self.cue
         beat = 60.0 / max(features.tempo, 60)
+        if cue is not self.cue and self.cue is not None and cue.kind == self.cue.kind and cue.tier == self.cue.tier \
+                and abs(cue.start - self.cue.start) <= 2 * analysis.fps:
+            # The same scene, continued by a newer plan that has heard further into the
+            # song: carry on with it rather than starting the look (or the drop) again
+            self.cue = cue
         if cue is not self.cue:
             self.cue = cue
             self.tier = cue.tier
@@ -263,6 +273,13 @@ class Director:
             self.level = max(0.0, (features.until_drop - beat / 4) / (beat * 1.25))
         else:
             self.level = 1.0
+
+    def plan_seed(self, analysis):
+        """The same song keeps the same plan when it is re-planned from a longer analysis"""
+        if not hasattr(self, "_plan_seed") or analysis.frames < getattr(self, "_seed_frames", 0):
+            self._plan_seed = self.rng.random()
+        self._seed_frames = analysis.frames
+        return self._plan_seed
 
     def _cast_cue(self, cue, features):
         ranked = self._ranked()

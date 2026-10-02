@@ -183,11 +183,16 @@ class TrackAnalysis:
 
 def analyse_file(path, progress=lambda fraction: None):
     rate = config.settings["configuration"]["MIC_RATE"]
-    fps = config.settings["configuration"]["FPS"]
-    hop = rate // fps
     raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", path, "-f", "s16le", "-ac", "1", "-ar", str(rate), "-"],
                          capture_output=True, check=True).stdout
-    audio = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 2.0**15
+    return analyse_audio(np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 2.0**15, progress)
+
+
+def analyse_audio(audio, progress=lambda fraction: None):
+    """Analyse mono samples (-1 to 1) at MIC_RATE"""
+    rate = config.settings["configuration"]["MIC_RATE"]
+    fps = config.settings["configuration"]["FPS"]
+    hop = rate // fps
     frames = len(audio) // hop
     if frames < fps * 5:
         raise ValueError("track is shorter than 5 seconds")

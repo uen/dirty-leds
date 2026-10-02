@@ -42,6 +42,9 @@ parser.add_argument("--seed", type=int, default=1, help="random seed for the sho
 parser.add_argument("--style", choices=["mixed", "freestyle", "effects"], help="show style (default: the config's)")
 parser.add_argument("--live", action="store_true",
                     help="run the show without pre-analysis, as on mic or system audio (the analysis still judges it)")
+parser.add_argument("--looks", action="store_true", help="print every look change with its reason")
+parser.add_argument("--lookahead", type=float, metavar="SECONDS",
+                    help="live with lookahead: audio analysed as it arrives, heard this many seconds later")
 parser.add_argument("--out", help="image path (default music/.reports/<track>.png)")
 args = parser.parse_args()
 os.environ["DIRTY_LEDS_CONFIG"] = args.config
@@ -64,7 +67,11 @@ def render(track):
     main.director.rng.seed(args.seed)
     analysis = analyse_file(os.path.join(MUSIC_DIR, track))
     main.library = types.SimpleNamespace(get=lambda _: None if args.live else analysis)
-    main.audio = types.SimpleNamespace(track=track, track_frame=0)
+    rolling = None
+    if args.lookahead:
+        from lib.lookahead import RollingAnalysis
+        rolling = RollingAnalysis(delay_seconds=args.lookahead, background=False)
+    main.audio = types.SimpleNamespace(track=None if rolling else track, track_frame=0, lookahead=rolling)
     for board in main.boards.values():
         board.esp._ip, board.esp._port = "127.0.0.1", 9
         board.config["current_effect"] = "Auto"
@@ -96,8 +103,14 @@ def render(track):
     main.director._cast_cue = record_cue
 
     strips = {name: np.zeros((frames, board.config["N_PIXELS"], 3), dtype=np.uint8) for name, board in main.boards.items()}
+    pushed = 0
     for frame in range(frames):
         main.audio.track_frame = frame
+        if rolling is not None:
+            # The lookahead hears the audio `delay` frames before it is played
+            while pushed < min(len(audio) // hop, frame + rolling.delay + 1):
+                rolling.push(audio[pushed * hop:(pushed + 1) * hop])
+                pushed += 1
         main.microphone_update(audio[frame * hop:(frame + 1) * hop])
         for name, board in main.boards.items():
             leds = np.frombuffer(board.esp.last_frame, dtype=np.uint8).reshape(-1, 3)
@@ -313,12 +326,17 @@ def draw(track, analysis, strips, looks, frames, energy, intensity, path):
 def main_():
     analysis, strips, looks, frames = render(args.track)
     checks, energy, intensity = score(analysis, strips, looks, frames)
-    mode = "live, no pre-analysis" if args.live else "pre-analysed"
+    mode = f"live with {args.lookahead:g} s lookahead" if args.lookahead else \
+        "live, no pre-analysis" if args.live else "pre-analysed"
     print(f"\n{args.track}: {frames / FPS:.0f} s, {len(looks)} looks, room {args.config}, {mode}\n")
     for name, value, target, ok, detail in checks:
         print(f"  {'ok  ' if ok else 'FAIL'}  {name:<9} {value:<28} target {target:<14} {detail}")
     name = os.path.splitext(os.path.basename(args.track))[0] + (f" ({args.style})" if args.style else "") \
-        + (" live" if args.live else "")
+        + (" live" if args.live else "") + (f" lookahead {args.lookahead:g}s" if args.lookahead else "")
+    if args.looks:
+        print("\n  look changes:")
+        for start, reason, strips_, signature in looks:
+            print(f"    {start / FPS:7.1f}s  {reason:<8} {signature}")
     path = args.out or os.path.join(MUSIC_DIR, ".reports", name + ".png")
     draw(args.track, analysis, strips, looks, frames, energy, intensity, path)
     print(f"\n  lightogram: {path}")

@@ -7,6 +7,9 @@ running:
     off            silence, so non-reactive effects keep animating
     mic            default input device (pyaudio)
     system         whatever is playing on this machine (PipeWire sink monitor)
+    lookahead      the same, routed through the app and played on to the speakers
+                   a few seconds late, so the show sees what is coming
+                   (lib/routing.py, lib/lookahead.py)
     track:<name>   a file in music/, looped in real time and played through
                    the speakers unless DIRTY_LEDS_MUTE=1
     pipe:<path>    raw s16le mono PCM at MIC_RATE from a FIFO, e.g. written by
@@ -52,6 +55,9 @@ def available_sources():
         pass
     if shutil.which("pw-record"):
         sources.append({"id": "system", "label": "System audio", "kind": "live"})
+    from lib import routing
+    if routing.available():
+        sources.append({"id": "lookahead", "label": "System audio with lookahead", "kind": "live"})
     for pipe in config.settings.get("pipes", []):
         sources.append({"id": "pipe:" + pipe["path"], "label": pipe.get("name", pipe["path"]), "kind": "live"})
     if shutil.which("ffmpeg"):
@@ -71,6 +77,8 @@ class AudioInput:
         # The track playing and how many frames of it have been played (it loops)
         self.track = None
         self.track_frame = 0
+        # The rolling analysis while the lookahead source runs (lib/lookahead.py)
+        self.lookahead = None
 
     def set_source(self, source, trusted=False):
         """Switch source. Untrusted callers (the web UI) may only pick listed sources"""
@@ -101,6 +109,8 @@ class AudioInput:
             self._run_mic()
         elif source == "system":
             self._run_command(self._system_capture_command())
+        elif source == "lookahead":
+            self._run_lookahead()
         elif source.startswith("track:"):
             self.track = source[len("track:"):]
             self.track_frame = 0
@@ -142,6 +152,72 @@ class AudioInput:
             stream.stop_stream()
             stream.close()
             p.terminate()
+
+    def _run_lookahead(self):
+        """System audio through the app: analysed as it arrives, played to the
+        speakers and shown on the lights `lookahead` seconds later"""
+        import select
+        from collections import deque
+        from lib import routing
+        from lib.lookahead import RollingAnalysis
+
+        output = routing.VirtualOutput()
+        rolling = RollingAnalysis(delay_seconds=config.settings.get("lookahead", 8.0))
+        capture = player = None
+        try:
+            format_args = ["--format", "s16", "--rate", str(_rate()), "--channels", "2", "-"]
+            capture = subprocess.Popen(["pw-record", "--target", routing.NODE_NAME,
+                                        "-P", "{ stream.capture.sink=true }"] + format_args, stdout=subprocess.PIPE)
+            if os.environ.get("DIRTY_LEDS_MUTE") != "1":
+                player = subprocess.Popen(["pw-play", "--target", output.speakers] + format_args,
+                                          stdin=subprocess.PIPE, bufsize=0)
+            self.lookahead = rolling
+            samples = _frames_per_buffer()
+            chunk_bytes = samples * 4  # stereo, 16 bit
+            frame_time = samples / _rate()
+            silent_chunk = bytes(chunk_bytes)
+            delayed = deque()
+            pending = b""
+            fd = capture.stdout.fileno()
+            start = time.monotonic()
+            emitted = 0  # frames processed, to keep time when nothing is playing
+            while not self._switch.is_set():
+                ready, _, _ = select.select([fd], [], [], frame_time)
+                if ready:
+                    data = os.read(fd, 65536)
+                    if not data:
+                        raise RuntimeError("system audio capture stopped")
+                    pending += data
+                else:
+                    # Nothing playing: the virtual output goes quiet. After a quarter of a
+                    # second of that, carry on with silence at the real rate (keeps the
+                    # lights running and marks gaps between songs). Audio arrives in
+                    # bursts longer than a frame, so shorter gaps are normal
+                    behind = (time.monotonic() - start) / frame_time - emitted
+                    if behind > 0.25 / frame_time:
+                        pending += silent_chunk * int(behind)
+                while len(pending) >= chunk_bytes:
+                    chunk, pending = pending[:chunk_bytes], pending[chunk_bytes:]
+                    emitted += 1
+                    mono = np.frombuffer(chunk, dtype=np.int16).reshape(-1, 2).mean(axis=1).astype(np.float32)
+                    rolling.push(mono)
+                    delayed.append((chunk, mono))
+                    if len(delayed) > rolling.delay:
+                        heard_chunk, heard = delayed.popleft()
+                        if player is not None:
+                            player.stdin.write(heard_chunk)
+                        self.callback(heard)
+                    else:
+                        # Still filling the delay: keep the lights rendering
+                        self.callback(np.zeros(samples, dtype=np.float32))
+        finally:
+            self.lookahead = None
+            rolling.close()
+            for process in (capture, player):
+                if process is not None:
+                    process.kill()
+                    process.wait()
+            output.close()
 
     def _run_pipe(self, path):
         chunk_bytes = _frames_per_buffer() * 2

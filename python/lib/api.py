@@ -45,6 +45,15 @@ def setLibrary(library):
 def _analysis_state():
     """Whether the show can see ahead: pre-analysed track, analysis running, or live"""
     source = _audio.source
+    if source == "lookahead":
+        rolling = _audio.lookahead
+        if rolling is None:
+            return {"status": "live"}
+        analysis, _ = rolling.current()
+        state = {"status": "lookahead", "delay": rolling.delay / rolling.fps, "ready": analysis is not None}
+        if analysis is not None:
+            state.update(analysis.summary())
+        return state
     if not source.startswith("track:"):
         return {"status": "live"}
     track = source[len("track:"):]

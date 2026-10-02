@@ -80,6 +80,16 @@ function ShowMode({ analysis, frames }: { analysis: Analysis; frames: FrameBus }
           <SectionGroove analysis={analysis} frames={frames} />
         </div>
       );
+    case "lookahead":
+      return (
+        <div className="show-mode" data-mode={analysis.ready ? "ready" : "analysing"}>
+          <p>
+            <strong>Lookahead.</strong> The show hears {analysis.delay} s ahead of the speakers.{" "}
+            {analysis.ready ? "It has learned this song and sees what's coming." : "Learning this song, reacting live for now."}
+          </p>
+          {analysis.ready && <TrackMap analysis={analysis} frames={frames} />}
+        </div>
+      );
     case "queued":
     case "analysing":
       return (

@@ -102,13 +102,20 @@ def analyse(audio_samples):
 
 
 def apply_prepared(features):
-    """Swap in the pre-analysed intensity, beats and sections when the playing track has them"""
-    if audio is None or audio.track is None or library is None:
+    """Swap in the pre-analysed intensity, beats and sections when the playing track
+    has them, or the rolling analysis when live audio is played with lookahead"""
+    if audio is None:
         return
-    analysis = library.get(audio.track)
+    lookahead = getattr(audio, "lookahead", None)
+    if lookahead is not None:
+        analysis, frame = lookahead.current()
+    elif audio.track is not None and library is not None:
+        analysis, frame = library.get(audio.track), audio.track_frame
+    else:
+        return
     if analysis is None:
         return
-    for name, value in analysis.at(audio.track_frame).items():
+    for name, value in analysis.at(frame).items():
         setattr(features, name, value)
     features.prepared = True
     features.analysis = analysis

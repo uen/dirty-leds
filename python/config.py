@@ -120,6 +120,7 @@ settings = {                                                      # All settings
     "server": {"host": "127.0.0.1", "port": 8000, **data.get("server", {})},  # Web interface
     "room": data.get("room"),                     # Optional room box and furniture for the room view
     "pipes": data.get("pipes", []),               # Optional named PCM FIFOs offered as audio sources
+    "lookahead": data.get("lookahead", 8.0),      # Seconds the lookahead source delays audio by
 
     "configuration":{
       'displayFPS': False,
