@@ -122,8 +122,7 @@ def microphone_update(audio_samples):
     global prev_fps_update
 
     audio_datas = analyse(audio_samples)
-    lead = lead_board()
-    server.broadcaster.set_audio(audio_datas[lead.board]["mel"], audio_datas[lead.board]["vol"])
+    server.broadcaster.set_features(music.current)
     send_all(render_all(audio_datas))
 
     # FPS update

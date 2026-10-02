@@ -62,6 +62,15 @@ class Visualizer():
         from effects.bars import Bars
         self.effects["Bars"] = Bars(self)
 
+        from effects.pulse import Pulse
+        self.effects["Pulse"] = Pulse(self)
+
+        from effects.ripple import Ripple
+        self.effects["Ripple"] = Ripple(self)
+
+        from effects.sparkle import Sparkle
+        self.effects["Sparkle"] = Sparkle(self)
+
         from effects.sleep import Sleep
         self.effects["Sleep"] = Sleep(self)
 
@@ -112,6 +121,17 @@ class Visualizer():
                                                     ["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
                                                     ["blur", "Blur", "float_slider", (0.1,4.0,0.1)]
                                                 ],
+                                        "Pulse": [["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
+                                                  ["colours", "Colours to step through", "slider", (1, 16, 1)],
+                                                  ["sharpness", "Flash sharpness", "float_slider", (0.5, 4.0, 0.1)]],
+                                       "Ripple": [["color_mode", "Color Mode", "dropdown", config.settings["gradients"]],
+                                                  ["width", "Ripple width", "float_slider", (1.0, 20.0, 0.5)],
+                                                  ["beats", "Beats to cross", "float_slider", (0.25, 4.0, 0.25)],
+                                                  ["on_beat", "Ripple on every beat", "checkbox"]],
+                                      "Sparkle": [["color_mode", "Background", "dropdown", config.settings["gradients"]],
+                                                  ["spark_color", "Spark colour", "dropdown", config.settings["colors"]],
+                                                  ["density", "Density", "float_slider", (0.01, 0.3, 0.01)],
+                                                  ["fade", "Fade (s)", "float_slider", (0.05, 1.0, 0.05)]],
                                         "Auto": [
                                                     ["bars", "Bars per effect", "slider", (1, 32, 1)]
                                                 ],

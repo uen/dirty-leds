@@ -18,6 +18,7 @@ export function SoundPanel({ audio, run, frames }: { audio: State["audio"] | und
     <aside className="panel sound">
       <h2>Sound</h2>
       <Spectrum frames={frames} />
+      <Meters frames={frames} />
       <div className="cues">
         {audio?.error && <p className="error" role="alert">{audio.error}</p>}
         <CueGroup title="Live input" sources={live} current={current} onPlay={play} />
@@ -60,6 +61,48 @@ function CueGroup({ title, sources, current, onPlay, empty }: CueGroupProps) {
         <p className="hint">{empty}</p>
       )}
     </section>
+  );
+}
+
+const METERS = [
+  ["bass", "Bass"],
+  ["mid", "Mids"],
+  ["treble", "Treble"],
+  ["intensity", "Intensity"],
+] as const;
+
+/** What the effects are reacting to: band levels, how big the song is, tempo and beats */
+function Meters({ frames }: { frames: FrameBus }) {
+  const bars = useRef<Record<string, HTMLSpanElement | null>>({});
+  const tempo = useRef<HTMLSpanElement>(null);
+  const beat = useRef<HTMLSpanElement>(null);
+  const lastBeats = useRef(0);
+
+  useFrame(frames, ({ meters, tempo: bpm, beats }) => {
+    for (const [key] of METERS) bars.current[key]?.style.setProperty("--level", String(meters?.[key] ?? 0));
+    if (tempo.current) tempo.current.textContent = bpm ? `${Math.round(bpm)} bpm` : "";
+    if (beats !== lastBeats.current && beat.current) {
+      lastBeats.current = beats;
+      // Restart the flash animation
+      beat.current.classList.remove("beat-on");
+      void beat.current.offsetWidth;
+      beat.current.classList.add("beat-on");
+    }
+  });
+
+  return (
+    <div className="meters">
+      {METERS.map(([key, label]) => (
+        <div key={key} className="meter">
+          <span className="control-label">{label}</span>
+          <span className="meter-track"><span ref={(el) => { bars.current[key] = el; }} className="meter-fill" /></span>
+        </div>
+      ))}
+      <div className="tempo">
+        <span ref={beat} className="beat-dot" aria-hidden="true" />
+        <span ref={tempo} className="readout" />
+      </div>
+    </div>
   );
 }
 

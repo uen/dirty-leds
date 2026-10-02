@@ -39,6 +39,17 @@ effectOptions = {"Energy":    {"blur": 1,                       # Amount of blur
                                                    "mirror": True,                  # Mirror output down central axis
                                                    "flip_lr":False},                # Flip output left-right
                                      "Single":    {"color": "Purple"},              # Static color to show
+                                     "Pulse":     {"color_mode": "Dancefloor",      # Colours stepped through, one per beat
+                                                   "colours": 4,                    # How many colours from the gradient
+                                                   "sharpness": 2.0},               # Higher flashes harder and fades faster
+                                     "Ripple":    {"color_mode": "Spectral",        # Colour picked by how bright the sound is
+                                                   "width": 8.0,                    # Pixels
+                                                   "beats": 2.0,                    # Beats for a ripple to reach the ends
+                                                   "on_beat": False},               # Also ripple on beats, not just kicks
+                                     "Sparkle":   {"color_mode": "Ocean",           # Background gradient
+                                                   "spark_color": "White",
+                                                   "density": 0.06,                 # Share of the strip lit per hit, at full intensity
+                                                   "fade": 0.25},                   # Seconds for a sparkle to fade
                                      "Auto":      {"bars": 8},                      # Bars before switching, unless the song changes section first
                                      "Bars":      {"resolution":4,                  # Number of "bars"
                                                    "color_mode":"Spectral",         # Multicolour mode to use

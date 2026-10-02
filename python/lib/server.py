@@ -5,7 +5,8 @@
     GET  /api/events   server-sent events:
                          state  the full state, sent on connect and on change
                          frame  latest LED bytes per device (base64, what was
-                                sent to each ESP) plus the audio spectrum
+                                sent to each ESP) plus the music features
+                                (spectrum, band meters, tempo, beat count)
     GET  /*            the built web interface from ../web/dist
 """
 import base64
@@ -31,11 +32,14 @@ FRAME_RATE = 60
 
 
 class Broadcaster:
-    """Tracks state changes and the latest audio spectrum for the event stream"""
+    """Tracks state changes and the latest music features for the event stream"""
     def __init__(self):
         self.state_version = 0
         self.spectrum = []
-        self.volume = 0.0
+        self.meters = {}
+        self.tempo = 0.0
+        # A running count rather than a flag, so the page can't miss a beat between events
+        self.beats = 0
         self._changed = threading.Condition()
         api.on_change(self.state_changed)
 
@@ -44,9 +48,11 @@ class Broadcaster:
             self.state_version += 1
             self._changed.notify_all()
 
-    def set_audio(self, mel, volume):
-        self.spectrum = [round(float(v), 3) for v in mel]
-        self.volume = float(volume)
+    def set_features(self, features):
+        self.spectrum = [round(float(v), 3) for v in features.bins]
+        self.meters = {name: round(getattr(features, name), 3) for name in ("bass", "mid", "treble", "intensity")}
+        self.tempo = round(features.tempo, 1)
+        self.beats += features.beat
 
 
 broadcaster = Broadcaster()
@@ -129,7 +135,9 @@ def make_handler(boards):
                         self.wfile.write(_event("frame", json.dumps({
                             "leds": leds,
                             "spectrum": broadcaster.spectrum,
-                            "volume": broadcaster.volume,
+                            "meters": broadcaster.meters,
+                            "tempo": broadcaster.tempo,
+                            "beats": broadcaster.beats,
                         })))
                     self.wfile.flush()
                     time.sleep(1.0 / FRAME_RATE)

@@ -311,6 +311,61 @@ input[type="checkbox"] {
   height: 56px;
 }
 
+.meters {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.meter {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.meter-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.meter-fill {
+  --level: 0;
+  display: block;
+  height: 100%;
+  width: calc(var(--level) * 100%);
+  background: var(--amber);
+}
+
+.tempo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.beat-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--raised);
+}
+
+.beat-dot.beat-on {
+  animation: beat-flash 0.25s ease-out;
+}
+
+@keyframes beat-flash {
+  from {
+    background: var(--amber);
+    box-shadow: 0 0 10px var(--amber);
+  }
+  to {
+    background: var(--raised);
+  }
+}
+
 .cues {
   display: flex;
   flex-direction: column;

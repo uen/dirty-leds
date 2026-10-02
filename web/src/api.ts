@@ -58,8 +58,12 @@ export interface State {
 
 export interface Frame {
   leds: Record<string, Uint8Array>;
+  /** 24 log-spaced bands, 0-1, each against its own recent range */
   spectrum: number[];
-  volume: number;
+  meters: Record<"bass" | "mid" | "treble" | "intensity", number>;
+  tempo: number;
+  /** Running beat count; a change means a beat landed */
+  beats: number;
 }
 
 export async function action(name: string, payload: Record<string, unknown>): Promise<string | null> {
@@ -93,7 +97,7 @@ export function connect(handlers: {
     const data = JSON.parse((event as MessageEvent).data);
     const leds: Record<string, Uint8Array> = {};
     for (const [name, encoded] of Object.entries<string>(data.leds)) leds[name] = decodeBase64(encoded);
-    handlers.onFrame({ leds, spectrum: data.spectrum, volume: data.volume });
+    handlers.onFrame({ leds, spectrum: data.spectrum, meters: data.meters, tempo: data.tempo, beats: data.beats });
   });
   return events;
 }
