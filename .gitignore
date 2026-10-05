@@ -56,3 +56,4 @@ python/music/
 web/node_modules/
 web/dist/
 python/.venv/
+arduino/ws2812_controller/secrets.h

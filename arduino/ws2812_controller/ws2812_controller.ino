@@ -3,26 +3,44 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 
-#define FASTLED_ESP8266_DMA // better control for ESP8266 will output or RX pin requires fork https://github.com/coryking/FastLED
+// WiFi updates interrupt the LED data on an ESP8266; keep them out of a frame
+#define FASTLED_ALLOW_INTERRUPTS 0
 #include "FastLED.h"
 
-/************ Network Information (CHANGE THESE FOR YOUR SETUP) ************************/
-const char* ssid = "WIFI_SSID";
-const char* password = "WIFI_PASSWORD";
+/************ Network Information **************************************************
+ * WIFI_SSID, WIFI_PASSWORD and OTA_PASSWORD come from secrets.h (copy
+ * secrets.h.example, it isn't committed). Per strip settings can be set when
+ * building instead of editing this file, e.g. with arduino-cli:
+ *   --build-property "compiler.cpp.extra_flags=-DNUM_LEDS=150 -DIP_LAST=174 -DSENSOR_NAME=\"Strip\""
+ */
+#include "secrets.h"
 
-const char* sensor_name = "TEST_SENSOR_HOSTNAME";
-const char* ota_password = "OTA_PASSWORD";
+#ifndef SENSOR_NAME
+#define SENSOR_NAME   "dirty-leds"
+#endif
+#ifndef IP_LAST
+#define IP_LAST       112
+#endif
+#ifndef NUM_LEDS
+#define NUM_LEDS      250
+#endif
+
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
+
+const char* sensor_name = SENSOR_NAME;
+const char* ota_password = OTA_PASSWORD;
 
 const bool static_ip = true;
-IPAddress ip(192, 168, 1, 112);
-IPAddress gateway(192, 168, 1, 1);
+IPAddress ip(192, 168, 1, IP_LAST);
+IPAddress gateway(192, 168, 1, 254);
 IPAddress subnet(255, 255, 255, 0);
 
 const int udp_port = 7778;
 
 /*********************************** FastLED Defintions ********************************/
-#define NUM_LEDS      250
-#define DATA_PIN      5
+// GPIO3 is the RX pin, as in the wiring in the README
+#define DATA_PIN      3
 //#define CLOCK_PIN   2
 #define CHIPSET       WS2812B
 #define COLOR_ORDER   GRB
@@ -33,7 +51,8 @@ CRGB leds[NUM_LEDS];
 
 /********************************** Start Setup ****************************************/
 void setup() {
-  Serial.begin(115200);
+  // Transmit only: the RX pin drives the LEDs
+  Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
 
   // Setup FastLED
   #ifdef CLOCK_PIN

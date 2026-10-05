@@ -8,11 +8,14 @@ You need an ESP8266 / ESP01 (others might work too), WS2812 or WS2812b LED strip
 
 **ESP SETUP**
 
-Flash the program onto your ESP8266 using Arduino IDE. Make sure you are using this fork of FastLED: https://github.com/coryking/FastLED
-
-Change the settings in ws2812_controller.ino to match your network settings
-
-Change NUM_LEDS to the amount of LEDs you have. Don't change DATA_PIN if you are using an ESP8266 and have the fork above.
+Copy `arduino/ws2812_controller/secrets.h.example` to `secrets.h` and fill in your WiFi (it isn't committed). Each strip's LED count, IP (last number) and name are set when building, so the sketch doesn't need editing. With [arduino-cli](https://arduino.github.io/arduino-cli/), the esp8266 core and the FastLED library:
+```
+cd arduino/ws2812_controller
+arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 \
+  --build-property 'compiler.cpp.extra_flags=-DNUM_LEDS=150 -DIP_LAST=174 -DSENSOR_NAME="Strip5"' .
+arduino-cli upload --fqbn esp8266:esp8266:nodemcuv2 -p /dev/ttyUSB0 .
+```
+The network in the sketch is 192.168.1.x with the router at .254; change it there if yours differs. Then add the strip to `python/config.json` with the same IP and LED count.
 
 You may need to change COLOR_ORDER depending on your LED strip.
 
