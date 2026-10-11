@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { State } from "../api";
+import type { RunAction } from "../hooks/useLedApp";
 import { useFrame, type FrameBus } from "../frames";
 import { RoomView } from "../RoomView";
+import { Slider } from "./Slider";
 
 /** The 3D room. RoomView is imperative three.js; this component only mounts it and feeds it */
-export function Stage({ state, frames }: { state: State | null; frames: FrameBus }) {
+export function Stage({ state, frames, run }: { state: State | null; frames: FrameBus; run: RunAction }) {
   const container = useRef<HTMLDivElement>(null);
   const view = useRef<RoomView | null>(null);
   // Low by default: in a dark room the strips should do the lighting
   const [roomLight, setRoomLight] = useState(0.1);
-  const [ledBrightness, setLedBrightness] = useState(1);
 
   useEffect(() => {
     view.current = new RoomView(container.current!);
@@ -24,7 +25,6 @@ export function Stage({ state, frames }: { state: State | null; frames: FrameBus
   }, [state]);
 
   useEffect(() => view.current?.setRoomLight(roomLight), [roomLight]);
-  useEffect(() => view.current?.setLedBrightness(ledBrightness), [ledBrightness]);
 
   useFrame(frames, (frame) => view.current?.setFrame(frame.leds));
 
@@ -37,11 +37,19 @@ export function Stage({ state, frames }: { state: State | null; frames: FrameBus
           <input type="range" min={0} max={1} step={0.05} value={roomLight}
             onChange={(e) => setRoomLight(Number(e.target.value))} />
         </label>
-        <label>
-          <span className="control-label">LED brightness</span>
-          <input type="range" min={0.1} max={3} step={0.1} value={ledBrightness}
-            onChange={(e) => setLedBrightness(Number(e.target.value))} />
-        </label>
+        {/* the real strips' brightness (same as Master): the room shows what they send */}
+        {state && (
+          <Slider
+            className=""
+            label="LED brightness"
+            value={state.brightness}
+            min={0}
+            max={100}
+            step={1}
+            format={(v) => `${v}%`}
+            onChange={(value) => run("set-brightness", { value })}
+          />
+        )}
       </div>
     </main>
   );

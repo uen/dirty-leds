@@ -107,6 +107,10 @@ with open(os.environ.get("DIRTY_LEDS_CONFIG", "config.json")) as configFile:
           "N_PIXELS": device["leds"],
           "N_FFT_BINS": 24,
           "MIN_FREQUENCY": 20,
+          # 0-1: while music plays, LEDs never drop below this (see lib/floor.py)
+          "MIN_BRIGHTNESS": float(device.get("minBrightness", 0)),
+          # 0-1: how much the strip smooths out small, fast changes (see lib/calm.py)
+          "CALM": float(device.get("calm", 0)),
           "MAX_FREQUENCY": 18000,
           "current_effect": "Scroll"
         },
@@ -121,7 +125,7 @@ settings = {                                                      # All settings
     "sync" : False,
     "brightness" : 0.8,
     "currentProfile": "",
-    "server": {"host": "127.0.0.1", "port": 8000, **data.get("server", {})},  # Web interface
+    "server": {"host": "127.0.0.1", "port": 6923, **data.get("server", {})},  # Web interface
     "room": data.get("room"),                     # Optional room box and furniture for the room view
     "pipes": data.get("pipes", []),               # Optional named PCM FIFOs offered as audio sources
     "lookahead": data.get("lookahead", 8.0),      # Seconds the lookahead source delays audio by

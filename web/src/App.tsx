@@ -16,7 +16,7 @@ export function App() {
   return (
     <div className="console">
       <Header state={state} connected={connected} error={error} run={run} />
-      <Stage state={state} frames={frames} />
+      <Stage state={state} frames={frames} run={run} />
       <SoundPanel audio={state?.audio} run={run} frames={frames} />
       <Channels devices={devices} selected={device?.name ?? null} onSelect={setSelected} frames={frames} />
       <EffectsPanel device={device} synced={Boolean(state?.sync && devices.length > 1)} run={run} />

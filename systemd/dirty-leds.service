@@ -1,0 +1,14 @@
+# User service: cp to ~/.config/systemd/user/ then
+#   systemctl --user daemon-reload && systemctl --user enable --now dirty-leds
+[Unit]
+Description=dirty-leds music reactive LED server
+After=pipewire.service
+
+[Service]
+WorkingDirectory=%h/git/uen/dirty-leds/python
+ExecStart=%h/git/uen/dirty-leds/python/.venv/bin/python -u main.py --audio system --host 0.0.0.0
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

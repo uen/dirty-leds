@@ -128,6 +128,8 @@ def _device_state(name, board):
         "showing": board.show.assignment(board).effect if board.config["current_effect"] == "Auto" else None,
         "minFrequency": board.config["MIN_FREQUENCY"],
         "maxFrequency": board.config["MAX_FREQUENCY"],
+        "minBrightness": round(board.config["MIN_BRIGHTNESS"] * 100),
+        "calm": round(board.config["CALM"] * 100),
         "layout": _config.settings["devices"][name].get("layout"),
         "effects": effects,
     }
@@ -275,6 +277,26 @@ def set_frequency(payload):
         board.config["MIN_FREQUENCY"] = low
         board.config["MAX_FREQUENCY"] = high
         board.signalProcessor.update_frequency_range()
+    _clear_profile()
+
+
+@action("set-min-brightness")
+def set_min_brightness(payload):
+    value = int(payload["value"])
+    if not 0 <= value <= 100:
+        return "Minimum brightness must be between 0 and 100"
+    for board in _target_boards(payload["device"]):
+        board.config["MIN_BRIGHTNESS"] = value / 100.0
+    _clear_profile()
+
+
+@action("set-calm")
+def set_calm(payload):
+    value = int(payload["value"])
+    if not 0 <= value <= 100:
+        return "Calm must be between 0 and 100"
+    for board in _target_boards(payload["device"]):
+        board.config["CALM"] = value / 100.0
     _clear_profile()
 
 

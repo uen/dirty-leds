@@ -60,7 +60,7 @@ Open `python/config.json` and add your ESP8266s:
 }
 ```
 
-Start it and open http://127.0.0.1:8000
+Start it and open http://127.0.0.1:6923
 ```
 cd python
 python3 main.py --audio system
@@ -89,6 +89,29 @@ Auto's settings have a show style: `mixed` (default), `freestyle` or `effects`. 
 To judge a show without watching it, render it to an image and a score card:
 ```
 python3 tools/show_report.py "song.mp3" [--live | --lookahead 8] [--looks]
+```
+
+**HOME ASSISTANT**
+
+`home-assistant/` runs Home Assistant in Docker with the Dirty LEDs integration mounted in:
+```
+cd home-assistant
+sudo docker compose up -d
+```
+Open http://localhost:8123, then Settings > Devices & services > Add integration > Dirty LEDs (host `127.0.0.1`, port `6923`). You get:
+
+* an **LEDs** page in the sidebar with the full web interface
+* a light for all strips (on/off, master brightness, effect including Auto) and one per strip (on/off, effect, and what the auto show picked as its `showing` attribute)
+* per strip Effect and Colours dropdowns, and Minimum brightness and Calm sliders
+* a Music player: the track and its playhead, seeking, the audio sources as its sources, off stops listening
+* switches for Auto show and Sync, selects for show style and profile
+* Tempo and Intensity sensors (Bass, Mid and Treble are there but disabled by default)
+* a `dirty_leds.set_option` action for any other effect setting, e.g. `{option: speed, value: 7}`
+
+Changes from the web interface show up in Home Assistant straight away. Keep the server running with the user service in `systemd/`:
+```
+cp systemd/dirty-leds.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now dirty-leds
 ```
 
 **SIMULATOR**

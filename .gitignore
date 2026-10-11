@@ -57,3 +57,6 @@ web/node_modules/
 web/dist/
 python/.venv/
 arduino/ws2812_controller/secrets.h
+
+# Home Assistant runtime state
+home-assistant/config/

@@ -26,6 +26,26 @@ export function EffectsPanel({ device, synced, run }: EffectsPanelProps) {
             Pick any effect to take over.
           </p>
         )}
+        <Slider
+          label="Min brightness"
+          value={device.minBrightness}
+          min={0}
+          max={50}
+          step={1}
+          format={(v) => (v ? `${v}%` : "Off")}
+          onChange={(value) => run("set-min-brightness", { device: device.name, value })}
+        />
+        <p className="hint">While music plays, LEDs dim to this instead of switching off, so the strip flickers less.</p>
+        <Slider
+          label="Calm"
+          value={device.calm}
+          min={0}
+          max={100}
+          step={1}
+          format={(v) => (v ? `${v}%` : "Off")}
+          onChange={(value) => run("set-calm", { device: device.name, value })}
+        />
+        <p className="hint">Higher moves slower and only follows the bigger moments, not every little change.</p>
       </header>
       <EffectList title="Follows the music" effects={device.effects.filter((e) => e.reactive)}
         current={device.currentEffect} onPick={pick} />

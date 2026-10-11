@@ -24,6 +24,10 @@ export interface Device {
   showing: string | null;
   minFrequency: number;
   maxFrequency: number;
+  /** 0-100: while music plays, the strip's LEDs never drop below this */
+  minBrightness: number;
+  /** 0-100: how much the strip smooths out small, fast changes */
+  calm: number;
   layout: Vec3[] | null;
   effects: Effect[];
 }

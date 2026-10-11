@@ -1,0 +1,15 @@
+{
+  "domain": "dirty_leds",
+  "name": "Dirty LEDs",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/uen/dirty-leds",
+  "integration_type": "hub",
+  "iot_class": "local_push",
+  "requirements": [],
+  "version": "1.0.0",
+  "dependencies": [
+    "frontend",
+    "http"
+  ]
+}

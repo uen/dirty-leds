@@ -7,7 +7,7 @@ parser.add_argument("--config", help="device config to use instead of config.jso
 parser.add_argument("--audio", default="off",
                     help="off, mic, system, track:<file in music/> or pipe:<fifo path>")
 parser.add_argument("--host", help="web interface host (default from config, 127.0.0.1)")
-parser.add_argument("--port", type=int, help="web interface port (default from config, 8000)")
+parser.add_argument("--port", type=int, help="web interface port (default from config, 6923)")
 if __name__ == "__main__":
     args = parser.parse_args()
     if args.config:
@@ -22,6 +22,8 @@ from lib.dsp import ExpFilter, DSP
 from lib.features import MusicFeatures
 from lib.director import Director
 from lib.analysis import Library
+from lib.floor import BrightnessFloor
+from lib.calm import Calm
 from threading import Thread
 from visualizer import Visualizer
 
@@ -32,6 +34,8 @@ class Board():
         self.effectConfig = config.settings["devices"][board]["effect_opts"]
         self.visualizer = Visualizer(self)
         self.signalProcessor = DSP(self)
+        self.floor = BrightnessFloor()
+        self.calm = Calm()
     
         self.esp = devices.ESP8266(
             ip            = self.config["UDP_IP"],
@@ -51,11 +55,15 @@ class Board():
     def getProfile(self):
         return {
             "currentEffect": self.config["current_effect"],
+            "minBrightness": self.config["MIN_BRIGHTNESS"],
+            "calm": self.config["CALM"],
             "effectConfig": self.effectConfig
         }
        
     def setProfile(self, profile):
         self.config["current_effect"] = profile["currentEffect"]
+        self.config["MIN_BRIGHTNESS"] = profile.get("minBrightness", self.config["MIN_BRIGHTNESS"])
+        self.config["CALM"] = profile.get("calm", self.config["CALM"])
         # Merge so effects added since the profile was saved keep their defaults
         for effect, options in profile["effectConfig"].items():
             self.effectConfig.setdefault(effect, {}).update(options)
@@ -127,10 +135,17 @@ def lead_board():
 
 
 def render(board, audio_data):
-    """One board's frame: its effect's output scaled by the master brightness"""
+    """One board's raw frame from its effect"""
     audio_input = not board.features.silent
+    return board.visualizer.get_vis(audio_data["mel"], audio_input)
+
+
+def finish(board, frame):
+    """The strip's own smoothing and minimum brightness, then the master brightness"""
+    calmed = board.calm.apply(frame, board.config["CALM"])
+    floored = board.floor.apply(calmed, board.config["MIN_BRIGHTNESS"], not board.features.silent)
     # New array: effects may return their own state, which must not be dimmed in place
-    return board.visualizer.get_vis(audio_data["mel"], audio_input) * config.settings["brightness"]
+    return floored * config.settings["brightness"]
 
 
 def render_all(audio_datas):
@@ -138,8 +153,8 @@ def render_all(audio_datas):
     if config.settings["sync"]:
         lead = lead_board()
         output = render(lead, audio_datas[lead.board])
-        return {name: output for name in boards}
-    return {name: render(board, audio_datas[name]) for name, board in boards.items()}
+        return {name: finish(board, output) for name, board in boards.items()}
+    return {name: finish(board, render(board, audio_datas[name])) for name, board in boards.items()}
 
 
 def send_all(outputs):

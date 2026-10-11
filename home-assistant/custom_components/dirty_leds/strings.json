@@ -1,0 +1,40 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Dirty LEDs server",
+        "description": "Where the dirty-leds Python server is running (python3 main.py).",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Can't reach the server. Is python3 main.py running?"
+    },
+    "abort": {
+      "already_configured": "This server is already set up"
+    }
+  },
+  "services": {
+    "set_option": {
+      "name": "Set effect option",
+      "description": "Change one setting of an effect, like the sliders in the dirty-leds web interface.",
+      "fields": {
+        "option": {
+          "name": "Option",
+          "description": "The setting's key, e.g. speed, blur, mirror, color_mode, roll_speed."
+        },
+        "value": {
+          "name": "Value",
+          "description": "New value: a number, true/false, or a name for dropdowns."
+        },
+        "effect": {
+          "name": "Effect",
+          "description": "Effect to change. Defaults to the strip's current effect."
+        }
+      }
+    }
+  }
+}

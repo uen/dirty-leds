@@ -1,0 +1,20 @@
+set_option:
+  target:
+    entity:
+      integration: dirty_leds
+      domain: light
+  fields:
+    option:
+      required: true
+      example: speed
+      selector:
+        text:
+    value:
+      required: true
+      example: 5
+      selector:
+        object:
+    effect:
+      example: Scroll
+      selector:
+        text:

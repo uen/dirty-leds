@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>LEDs</title>
+<script>
+  // Home Assistant shows this page in its sidebar. Send it on to the dirty-leds web interface on the
+  // machine the browser reached Home Assistant through, so it works from this PC and from a phone
+  const params = new URLSearchParams(location.search)
+  const local = ["127.0.0.1", "localhost"].includes(params.get("host"))
+  const host = local ? location.hostname : params.get("host")
+  location.replace(`http://${host}:${params.get("port")}/`)
+</script>
